@@ -113,11 +113,11 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
         $order = wc_get_order($order_id);
 
         $callbackUrl = add_query_arg(
-	        array(
-		        'order_id' => $order->get_id(),
-		        'key' => $order->get_order_key(),
-	        ),
-	        WC()->api_request_url(get_class($this->gateway))
+            array(
+                'order_id' => $order->get_id(),
+                'key' => $order->get_order_key(),
+            ),
+            WC()->api_request_url(get_class($this->gateway))
         );
 
         if ($this->gateway->is_new_credit_card) {
@@ -329,8 +329,19 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
 
         $items = apply_filters('swedbank_pay_order_items', $items, $order);
 
+        // "Save to Account" Flag
+        $neesSaveToken = false;
+        if ('1' === $order->get_meta('_payex_generate_token') && 0 === count($order->get_payment_tokens())) {
+            $neesSaveToken = true;
+        }
+
+        if (function_exists( 'wcs_order_contains_subscription' ) &&
+            wcs_order_contains_subscription($order)) {
+            $neesSaveToken = true;
+        }
+
         return array(
-        	OrderInterface::PAYMENT_METHOD => $this->getPaymentMethod($order_id),
+            OrderInterface::PAYMENT_METHOD => $this->getPaymentMethod($order_id),
             OrderInterface::ORDER_ID => $order->get_id(),
             OrderInterface::AMOUNT => apply_filters(
                 'swedbank_pay_order_amount',
@@ -341,29 +352,27 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
             OrderInterface::VAT_AMOUNT => apply_filters(
                 'swedbank_pay_order_vat',
                 $info['vat_amount'],
-	            $items,
+                $items,
                 $order
             ),
             OrderInterface::VAT_RATE => 0, // Can be different
             OrderInterface::SHIPPING_AMOUNT => 0, // @todo
             OrderInterface::SHIPPING_VAT_AMOUNT => 0, // @todo
             OrderInterface::DESCRIPTION => apply_filters(
-	            'swedbank_pay_payment_description',
-	            sprintf(
-	            /* translators: 1: order id */ __('Order #%1$s', 'swedbank-pay-woocommerce-payments'),
-		            $order->get_order_number()
-	            ),
-	            $order
+                'swedbank_pay_payment_description',
+                sprintf(
+                /* translators: 1: order id */ __('Order #%1$s', 'swedbank-pay-woocommerce-payments'),
+                    $order->get_order_number()
+                ),
+                $order
             ),
             OrderInterface::CURRENCY => $order->get_currency(),
             OrderInterface::STATUS => $this->getOrderStatus($order_id),
             OrderInterface::CREATED_AT => gmdate('Y-m-d H:i:s', $order->get_date_created()->getTimestamp()),
             OrderInterface::PAYMENT_ID => $order->get_meta('_payex_payment_id'),
             OrderInterface::PAYMENT_ORDER_ID => $order->get_meta('_payex_paymentorder_id'),
-            OrderInterface::NEEDS_SAVE_TOKEN_FLAG => '1' === $order->get_meta('_payex_generate_token') &&
-                0 === count($order->get_payment_tokens()),
+            OrderInterface::NEEDS_SAVE_TOKEN_FLAG => $neesSaveToken,
             OrderInterface::NEEDS_SHIPPING => $needs_shipping,
-
             OrderInterface::HTTP_ACCEPT => isset($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : null,
             OrderInterface::HTTP_USER_AGENT => $order->get_customer_user_agent(),
             OrderInterface::BILLING_COUNTRY => $billing_country,
@@ -375,9 +384,9 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
             OrderInterface::BILLING_STATE => $order->get_billing_state(),
             OrderInterface::BILLING_POSTCODE => $order->get_billing_postcode(),
             OrderInterface::BILLING_PHONE => apply_filters(
-	            'swedbank_pay_order_billing_phone',
-	            $order->get_billing_phone(),
-	            $order
+                'swedbank_pay_order_billing_phone',
+                $order->get_billing_phone(),
+                $order
             ),
             OrderInterface::BILLING_EMAIL => $order->get_billing_email(),
             OrderInterface::BILLING_FIRST_NAME => $order->get_billing_first_name(),
@@ -391,9 +400,9 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
             OrderInterface::SHIPPING_STATE => $order->get_shipping_state(),
             OrderInterface::SHIPPING_POSTCODE => $order->get_shipping_postcode(),
             OrderInterface::SHIPPING_PHONE => apply_filters(
-            	'swedbank_pay_order_billing_phone',
-	            $order->get_billing_phone(),
-	            $order
+                'swedbank_pay_order_billing_phone',
+                $order->get_billing_phone(),
+                $order
             ),
             OrderInterface::SHIPPING_EMAIL => $order->get_billing_email(),
             OrderInterface::SHIPPING_FIRST_NAME => $order->get_shipping_first_name(),
@@ -502,37 +511,37 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
     }
 
 
-	/**
-	 * Get Order Status.
-	 *
-	 * @param $order_id
-	 *
-	 * @see wc_get_order_statuses()
-	 * @return string
-	 * @throws Exception
-	 */
-	public function getOrderStatus($order_id)
-	{
-		$order = wc_get_order($order_id);
+    /**
+     * Get Order Status.
+     *
+     * @param $order_id
+     *
+     * @see wc_get_order_statuses()
+     * @return string
+     * @throws Exception
+     */
+    public function getOrderStatus($order_id)
+    {
+        $order = wc_get_order($order_id);
 
-		switch ($order->get_status()) {
-			case 'pending':
-				return OrderInterface::STATUS_PENDING;
-			case 'on-hold':
-				return OrderInterface::STATUS_AUTHORIZED;
-			case 'completed';
-			case 'processing';
-				return OrderInterface::STATUS_CAPTURED;
-			case 'cancelled':
-				return OrderInterface::STATUS_CANCELLED;
-			case 'refunded':
-				return OrderInterface::STATUS_REFUNDED;
-			case 'failed':
-				return OrderInterface::STATUS_FAILED;
-			default:
-				throw new Exception('Unable to recognize order status.');
-		}
-	}
+        switch ($order->get_status()) {
+            case 'pending':
+                return OrderInterface::STATUS_PENDING;
+            case 'on-hold':
+                return OrderInterface::STATUS_AUTHORIZED;
+            case 'completed';
+            case 'processing';
+                return OrderInterface::STATUS_CAPTURED;
+            case 'cancelled':
+                return OrderInterface::STATUS_CANCELLED;
+            case 'refunded':
+                return OrderInterface::STATUS_REFUNDED;
+            case 'failed':
+                return OrderInterface::STATUS_FAILED;
+            default:
+                throw new Exception('Unable to recognize order status.');
+        }
+    }
 
     /**
      * Update Order Status.
@@ -606,37 +615,37 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
         }
     }
 
-	/**
-	 * Set Payment Id to Order.
-	 *
-	 * @param mixed $orderId
-	 * @param string $paymentId
-	 *
-	 * @return void
-	 */
+    /**
+     * Set Payment Id to Order.
+     *
+     * @param mixed $orderId
+     * @param string $paymentId
+     *
+     * @return void
+     */
     public function setPaymentId($orderId, $paymentId)
     {
-    	$order = wc_get_order($orderId);
+        $order = wc_get_order($orderId);
 
-	    $order->update_meta_data( '_payex_payment_id', $paymentId );
-	    $order->save();
-	    clean_post_cache( $order->get_id() );
+        $order->update_meta_data( '_payex_payment_id', $paymentId );
+        $order->save();
+        clean_post_cache( $order->get_id() );
     }
 
-	/**
-	 * Set Payment Order Id to Order.
-	 *
-	 * @param mixed $orderId
-	 * @param string $paymentOrderId
-	 *
-	 * @return void
-	 */
+    /**
+     * Set Payment Order Id to Order.
+     *
+     * @param mixed $orderId
+     * @param string $paymentOrderId
+     *
+     * @return void
+     */
     public function setPaymentOrderId($orderId, $paymentOrderId)
     {
-	    $order = wc_get_order($orderId);
+        $order = wc_get_order($orderId);
 
-	    $order->update_meta_data( '_payex_paymentorder_id', $paymentOrderId );
-	    $order->save();
+        $order->update_meta_data( '_payex_paymentorder_id', $paymentOrderId );
+        $order->save();
     }
 
     /**
@@ -651,35 +660,35 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
         $order->add_order_note($message);
     }
 
-	/**
-	 * Get Payment Method.
-	 *
-	 * @param mixed $orderId
-	 *
-	 * @return string|null Returns method or null if not exists
-	 */
+    /**
+     * Get Payment Method.
+     *
+     * @param mixed $orderId
+     *
+     * @return string|null Returns method or null if not exists
+     */
     public function getPaymentMethod($orderId)
     {
-	    $order = wc_get_order($orderId);
+        $order = wc_get_order($orderId);
 
-	    switch ($order->get_payment_method()) {
-		    case 'payex_checkout':
-		    	return PaymentAdapterInterface::METHOD_CHECKOUT;
-		    case 'payex_psp_cc':
-			    return PaymentAdapterInterface::METHOD_CC;
-		    case 'payex_psp_invoice':
-			    return PaymentAdapterInterface::METHOD_INVOICE;
-		    case 'payex_psp_mobilepay':
-			    return PaymentAdapterInterface::METHOD_MOBILEPAY;
-		    case 'payex_psp_swish':
-			    return PaymentAdapterInterface::METHOD_SWISH;
-		    case 'payex_psp_trustly':
-			    return PaymentAdapterInterface::METHOD_TRUSTLY;
-		    case 'payex_psp_vipps':
-			    return PaymentAdapterInterface::METHOD_VIPPS;
-		    default:
-		    	return null;
-	    }
+        switch ($order->get_payment_method()) {
+            case 'payex_checkout':
+                return PaymentAdapterInterface::METHOD_CHECKOUT;
+            case 'payex_psp_cc':
+                return PaymentAdapterInterface::METHOD_CC;
+            case 'payex_psp_invoice':
+                return PaymentAdapterInterface::METHOD_INVOICE;
+            case 'payex_psp_mobilepay':
+                return PaymentAdapterInterface::METHOD_MOBILEPAY;
+            case 'payex_psp_swish':
+                return PaymentAdapterInterface::METHOD_SWISH;
+            case 'payex_psp_trustly':
+                return PaymentAdapterInterface::METHOD_TRUSTLY;
+            case 'payex_psp_vipps':
+                return PaymentAdapterInterface::METHOD_VIPPS;
+            default:
+                return null;
+        }
     }
 
     /**
@@ -760,12 +769,12 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
             $order->add_payment_token($token);
 
             // Activate subscription if this is WC_Subscriptions
-	        if ( function_exists( 'wcs_order_contains_subscription' ) &&
-	             wcs_order_contains_subscription( $order ) &&
-	             abs( $order->get_total() ) < 0.01
-	        ) {
-		        $order->payment_complete();
-	        }
+            if (function_exists( 'wcs_order_contains_subscription') &&
+                 wcs_order_contains_subscription($order) &&
+                 abs($order->get_total()) < 0.01
+            ) {
+                $order->payment_complete();
+            }
         }
     }
 
