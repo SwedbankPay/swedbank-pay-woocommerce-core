@@ -329,7 +329,7 @@ trait Checkout
                     $orderId,
                     OrderInterface::STATUS_CAPTURED,
                     sprintf('Transaction is captured. Amount: %s', $amount),
-                    $transaction['number']
+                    $transaction['id']
                 );
                 break;
             case 'Initialized':
@@ -403,7 +403,7 @@ trait Checkout
                     $orderId,
                     OrderInterface::STATUS_CANCELLED,
                     'Transaction is cancelled.',
-                    $transaction['number']
+                    $transaction['id']
                 );
                 break;
             case 'Initialized':
@@ -501,7 +501,7 @@ trait Checkout
                         $orderId,
                         OrderInterface::STATUS_REFUNDED,
                         sprintf('Refunded: %s. Transaction state: %s', $amount, $transaction['state']),
-                        $transaction['number']
+                        $transaction['id']
                     );
                 } else {
                     $this->addOrderNote(

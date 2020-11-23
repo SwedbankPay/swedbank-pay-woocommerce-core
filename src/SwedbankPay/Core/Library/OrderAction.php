@@ -166,7 +166,7 @@ trait OrderAction
                     $orderId,
                     OrderInterface::STATUS_CAPTURED,
                     sprintf('Transaction is captured. Amount: %s', $amount),
-                    $transaction['number']
+                    $transaction['id']
                 );
                 break;
             case 'Initialized':
@@ -245,7 +245,7 @@ trait OrderAction
                     $orderId,
                     OrderInterface::STATUS_CANCELLED,
                     'Transaction is cancelled.',
-                    $transaction['number']
+                    $transaction['id']
                 );
                 break;
             case 'Initialized':
@@ -341,7 +341,7 @@ trait OrderAction
                         $orderId,
                         OrderInterface::STATUS_REFUNDED,
                         sprintf('Refunded: %s. Transaction state: %s', $amount, $transaction['state']),
-                        $transaction['number']
+                        $transaction['id']
                     );
                 } else {
                     $this->addOrderNote(
@@ -620,7 +620,7 @@ trait OrderAction
                         $orderId,
                         OrderInterface::STATUS_FAILED,
                         sprintf('Authorization has been failed. Reason: %s.', $transaction->getFailedDetails()),
-                        $transaction->getNumber()
+                        $transaction->getId()
                     );
 
                     break;
@@ -631,7 +631,7 @@ trait OrderAction
                         $orderId,
                         OrderInterface::STATUS_AUTHORIZED,
                         'Authorization is pending.',
-                        $transaction->getNumber()
+                        $transaction->getId()
                     );
 
                     break;
@@ -641,7 +641,7 @@ trait OrderAction
                     $orderId,
                     OrderInterface::STATUS_AUTHORIZED,
                     'Payment has been authorized.',
-                    $transaction->getNumber()
+                    $transaction->getId()
                 );
 
                 // Save Payment Token
@@ -679,7 +679,7 @@ trait OrderAction
                         $orderId,
                         OrderInterface::STATUS_FAILED,
                         sprintf('Capture has been failed. Reason: %s.', $transaction->getFailedDetails()),
-                        $transaction->getNumber()
+                        $transaction->getId()
                     );
 
                     break;
@@ -690,7 +690,7 @@ trait OrderAction
                         $orderId,
                         OrderInterface::STATUS_AUTHORIZED,
                         'Capture is pending.',
-                        $transaction->getNumber()
+                        $transaction->getId()
                     );
 
                     break;
@@ -700,7 +700,7 @@ trait OrderAction
                     $orderId,
                     OrderInterface::STATUS_CAPTURED,
                     'Payment has been captured.',
-                    $transaction->getNumber()
+                    $transaction->getId()
                 );
                 break;
             case TransactionInterface::TYPE_CANCELLATION:
@@ -709,7 +709,7 @@ trait OrderAction
                         $orderId,
                         OrderInterface::STATUS_FAILED,
                         sprintf('Cancellation has been failed. Reason: %s.', $transaction->getFailedDetails()),
-                        $transaction->getNumber()
+                        $transaction->getId()
                     );
 
                     break;
@@ -720,7 +720,7 @@ trait OrderAction
                         $orderId,
                         OrderInterface::STATUS_CANCELLED,
                         'Cancellation is pending.',
-                        $transaction->getNumber()
+                        $transaction->getId()
                     );
 
                     break;
@@ -730,7 +730,7 @@ trait OrderAction
                     $orderId,
                     OrderInterface::STATUS_CAPTURED,
                     'Payment has been cancelled.',
-                    $transaction->getNumber()
+                    $transaction->getId()
                 );
                 break;
             case TransactionInterface::TYPE_REVERSAL:
@@ -739,7 +739,7 @@ trait OrderAction
                         $orderId,
                         OrderInterface::STATUS_FAILED,
                         sprintf('Reversal has been failed. Reason: %s.', $transaction->getFailedDetails()),
-                        $transaction->getNumber()
+                        $transaction->getId()
                     );
 
                     break;
@@ -750,7 +750,7 @@ trait OrderAction
                         $orderId,
                         OrderInterface::STATUS_REFUNDED,
                         'Reversal is pending.',
-                        $transaction->getNumber()
+                        $transaction->getId()
                     );
 
                     break;
@@ -774,7 +774,7 @@ trait OrderAction
                         $orderId,
                         OrderInterface::STATUS_REFUNDED,
                         'Payment has been refunded.',
-                        $transaction->getNumber()
+                        $transaction->getId()
                     );
                 } else {
                     $this->addOrderNote(
@@ -851,7 +851,7 @@ trait OrderAction
                                     $this->setPaymentId($orderId, $paymentId);
                                 }
 
-                                $this->fetchTransactionsAndUpdateOrder($orderId, $transaction->getNumber());
+                                $this->fetchTransactionsAndUpdateOrder($orderId, $transaction->getId());
                                 break 3;
                             case TransactionInterface::STATE_FAILED:
                                 // Log failed transaction
