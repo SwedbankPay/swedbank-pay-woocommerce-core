@@ -2,6 +2,7 @@
 
 namespace SwedbankPay\Core\Adapter;
 
+use Automattic\WooCommerce\Utilities\OrderUtil;
 use SwedbankPay\Core\Exception;
 use SwedbankPay\Core\Log\LogLevel;
 use SwedbankPay\Core\PaymentAdapter;
@@ -1149,19 +1150,30 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
     public function isCreditMemoExist($transactionId)
     {
         global $wpdb;
+        if ( ! OrderUtil::custom_orders_table_usage_is_enabled() ) {
+            $query = "
+                    SELECT post_id FROM `{$wpdb->prefix}postmeta` postmeta
+                    LEFT JOIN `{$wpdb->prefix}posts` AS posts ON postmeta.post_id = posts.ID
+                    WHERE meta_key='_transaction_id' AND meta_value=%s AND posts.post_type='shop_order_refund';
+                ";
 
-        $query = "
-                SELECT post_id FROM `{$wpdb->prefix}postmeta` postmeta
-                LEFT JOIN `{$wpdb->prefix}posts` AS posts ON postmeta.post_id = posts.ID
-                WHERE meta_key='_transaction_id' AND meta_value=%s AND posts.post_type='shop_order_refund';
-            ";
+            if ($wpdb->get_var($wpdb->prepare($query, $transactionId))) {
+                // Credit Memo is already exists
+                return true;
+            }
 
-        if ($wpdb->get_var($wpdb->prepare($query, $transactionId))) {
-            // Credit Memo is already exists
-            return true;
+            return false;
         }
 
-        return false;
+        $orders = wc_get_orders(
+            array(
+                'type'           => 'shop_order_refund',
+                'return'         => 'ids',
+                'limit'          => 1,
+                'transaction_id' => $transactionId,
+            )
+		);
+		return (bool) $orders;
     }
 
     /**
