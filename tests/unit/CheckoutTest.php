@@ -9,69 +9,69 @@ class CheckoutTest extends TestCase
         // Test with mock
         $response = <<<END
 {
-	"paymentOrder": {
-		"id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0",
-		"created": "2023-02-01T17:31:53.7200918Z",
-		"updated": "2023-02-01T17:31:53.8703409Z",
-		"operation": "Purchase",
-		"state": "Ready",
-		"currency": "SEK",
-		"amount": 61600,
-		"vatAmount": 12320,
-		"orderItems": {
-			"id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/orderitems"
-		},
-		"description": "Order #10926",
-		"initiatingSystemUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
-		"userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
-		"language": "sv-SE",
-		"availableInstruments": ["CreditCard", "Invoice-PayExFinancingSe", "Swish", "CreditAccount-CreditAccountSe"],
-		"integration": "",
-		"urls": {
-			"id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/urls"
-		},
-		"payeeInfo": {
-			"id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/payeeInfo"
-		},
-		"metadata": {
-			"id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/metadata"
-		},
-		"payer": {
-			"id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/payers"
-		},
-		"payments": {
-			"id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/payments"
-		},
-		"currentPayment": {
-			"id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/currentpayment"
-		},
-		"items": [{
-			"creditCard": {
-				"cardBrands": ["MasterCard", "Visa"]
-			}
-		}]
-	},
-	"operations": [{
-		"method": "PATCH",
-		"href": "https://api.externalintegration.payex.com/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0",
-		"rel": "update-paymentorder-updateorder",
-		"contentType": "application/json"
-	}, {
-		"method": "PATCH",
-		"href": "https://api.externalintegration.payex.com/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0",
-		"rel": "update-paymentorder-abort",
-		"contentType": "application/json"
-	}, {
-		"method": "GET",
-		"href": "https://ecom.externalintegration.payex.com/paymentmenu/13f388fd92efa8d726c6be2be2cecbf3b10b8fbe5be363e9726d9b9b5fa43f22",
-		"rel": "redirect-paymentorder",
-		"contentType": "text/html"
-	}, {
-		"method": "GET",
-		"href": "https://ecom.externalintegration.payex.com/paymentmenu/core/client/paymentmenu/13f388fd92efa8d726c6be2be2cecbf3b10b8fbe5be363e9726d9b9b5fa43f22?culture=sv-SE",
-		"rel": "view-paymentorder",
-		"contentType": "application/javascript"
-	}]
+    "paymentOrder": {
+        "id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0",
+        "created": "2023-02-01T17:31:53.7200918Z",
+        "updated": "2023-02-01T17:31:53.8703409Z",
+        "operation": "Purchase",
+        "state": "Ready",
+        "currency": "SEK",
+        "amount": 61600,
+        "vatAmount": 12320,
+        "orderItems": {
+            "id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/orderitems"
+        },
+        "description": "Order #10926",
+        "initiatingSystemUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
+        "language": "sv-SE",
+        "availableInstruments": ["CreditCard", "Invoice-PayExFinancingSe", "Swish", "CreditAccount-CreditAccountSe"],
+        "integration": "",
+        "urls": {
+            "id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/urls"
+        },
+        "payeeInfo": {
+            "id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/payeeInfo"
+        },
+        "metadata": {
+            "id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/metadata"
+        },
+        "payer": {
+            "id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/payers"
+        },
+        "payments": {
+            "id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/payments"
+        },
+        "currentPayment": {
+            "id": "/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0/currentpayment"
+        },
+        "items": [{
+            "creditCard": {
+                "cardBrands": ["MasterCard", "Visa"]
+            }
+        }]
+    },
+    "operations": [{
+        "method": "PATCH",
+        "href": "https://api.externalintegration.payex.com/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0",
+        "rel": "update-paymentorder-updateorder",
+        "contentType": "application/json"
+    }, {
+        "method": "PATCH",
+        "href": "https://api.externalintegration.payex.com/psp/paymentorders/b77594ee-9b9e-47fa-d13d-08db0362a6d0",
+        "rel": "update-paymentorder-abort",
+        "contentType": "application/json"
+    }, {
+        "method": "GET",
+        "href": "https://ecom.externalintegration.payex.com/paymentmenu/13f388fd92efa8d726c6be2be2cecbf3b10b8fbe5be363e9726d9b9b5fa43f22",
+        "rel": "redirect-paymentorder",
+        "contentType": "text/html"
+    }, {
+        "method": "GET",
+        "href": "https://ecom.externalintegration.payex.com/paymentmenu/core/client/paymentmenu/13f388fd92efa8d726c6be2be2cecbf3b10b8fbe5be363e9726d9b9b5fa43f22?culture=sv-SE",
+        "rel": "view-paymentorder",
+        "contentType": "application/javascript"
+    }]
 }
 END;
 
@@ -119,16 +119,6 @@ END;
         $this->assertIsString($result->getOperationByRel('update-paymentorder-abort'));
         $this->assertIsString($result->getOperationByRel('redirect-paymentorder'));
         $this->assertIsString($result->getOperationByRel('view-paymentorder'));
-    }
-
-    /**
-     * @depends CheckoutTest::testInitiatePaymentOrderPurchase
-     * @param Response $response
-     */
-    public function testGetPaymentIdByPaymentOrder(Response $response)
-    {
-        $paymentId = $this->core->getPaymentIdByPaymentOrder($response['payment_order']['id']);
-        $this->assertEquals(false, $paymentId);
     }
 
     /**

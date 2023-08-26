@@ -4,7 +4,7 @@ namespace SwedbankPay\Core;
 
 use SwedbankPay\Core\Api\Authorization;
 use SwedbankPay\Core\Api\Response;
-use SwedbankPay\Core\Api\Transaction;
+use SwedbankPay\Core\Api\FinancialTransaction;
 use SwedbankPay\Core\Api\Verification;
 
 interface CoreInterface
@@ -19,8 +19,6 @@ interface CoreInterface
     const OPERATION_UNSCHEDULED_PURCHASE = 'UnscheduledPurchase';
     const OPERATION_FINANCING_CONSUMER = 'FinancingConsumer';
     const OPERATION_UPDATE_ORDER = 'UpdateOrder';
-
-    const TYPE_CREDITCARD = 'CreditCard';
 
     /**
      * Can Capture.
@@ -53,52 +51,6 @@ interface CoreInterface
     public function canRefund($orderId, $amount = null);
 
     /**
-     * Capture.
-     *
-     * @param mixed $orderId
-     * @param mixed $amount
-     * @param mixed $vatAmount
-     *
-     * @return Response
-     * @throws Exception
-     */
-    public function capture($orderId, $amount = null);
-
-    /**
-     * Cancel.
-     *
-     * @param mixed $orderId
-     * @param mixed $amount
-     * @param mixed $vatAmount
-     *
-     * @return Response
-     * @throws Exception
-     */
-    public function cancel($orderId, $amount = null);
-
-    /**
-     * Refund.
-     *
-     * @param mixed $orderId
-     * @param mixed $amount
-     * @param mixed $vatAmount
-     *
-     * @return Response
-     * @throws Exception
-     */
-    public function refund($orderId, $amount = null, $reason = null);
-
-    /**
-     * Abort Payment.
-     *
-     * @param mixed $orderId
-     *
-     * @return Response
-     * @throws Exception
-     */
-    public function abort($orderId);
-
-    /**
      * Check if order status can be updated.
      *
      * @param mixed $orderId
@@ -117,16 +69,6 @@ interface CoreInterface
      * @throws Exception
      */
     public function getOrderStatus($orderId);
-
-    /**
-     * Set Payment Id to Order.
-     *
-     * @param mixed $orderId
-     * @param string $paymentId
-     *
-     * @return void
-     */
-    public function setPaymentId($orderId, $paymentId);
 
     /**
      * Set Payment Order Id to Order.
@@ -157,31 +99,12 @@ interface CoreInterface
     public function addOrderNote($orderId, $message);
 
     /**
-     * Get Payment Method.
-     *
-     * @param mixed $orderId
-     *
-     * @return string|null Returns method or null if not exists
-     */
-    public function getPaymentMethod($orderId);
-
-    /**
-     * Fetch Transactions related to specific order, process transactions and
-     * update order status.
-     *
-     * @param mixed $orderId
-     * @param string|null $transactionNumber
-     * @throws Exception
-     */
-    public function fetchTransactionsAndUpdateOrder($orderId, $transactionNumber = null);
-
-    /**
      * @param $orderId
-     * @param Api\Transaction|array $transaction
+     * @param Api\FinancialTransaction|array $transaction
      *
      * @throws Exception
      */
-    public function processTransaction($orderId, $transaction);
+    public function processFinancialTransaction($orderId, $transaction);
 
     /**
      * @param $orderId
@@ -224,15 +147,14 @@ interface CoreInterface
     public function fetchPaymentInfo($paymentIdUrl, $expand = null);
 
     /**
-     * Fetch Transaction List.
+     * Fetch Financial Transaction List.
      *
-     * @param string $paymentIdUrl
-     * @param string|null $expand
+     * @param $paymentOrderIdUrl
+     * @param $expand
      *
-     * @return Transaction[]
-     * @throws Exception
+     * @return FinancialTransaction[]
      */
-    public function fetchTransactionsList($paymentIdUrl, $expand = null);
+    public function fetchFinancialTransactionsList($paymentOrderIdUrl, $expand = null);
 
     /**
      * Fetch Verification List.
@@ -262,7 +184,7 @@ interface CoreInterface
      * @param mixed $orderId
      * @param array $transactionData
      */
-    public function saveTransaction($orderId, $transactionData = []);
+    public function saveFinancialTransaction($orderId, $transactionData = []);
 
     /**
      * Save Transactions Data.
@@ -270,7 +192,7 @@ interface CoreInterface
      * @param mixed $orderId
      * @param array $transactions
      */
-    public function saveTransactions($orderId, array $transactions);
+    public function saveFinancialTransactions($orderId, array $transactions);
 
     /**
      * Find Transaction.
@@ -278,9 +200,9 @@ interface CoreInterface
      * @param string $field
      * @param mixed $value
      *
-     * @return bool|Transaction
+     * @return bool|FinancialTransaction
      */
-    public function findTransaction($field, $value);
+    public function findFinancialTransaction($field, $value);
 
     /**
      * Log a message.
@@ -290,24 +212,4 @@ interface CoreInterface
      * @param array $context Context
      */
     public function log($level, $message, array $context = []);
-
-    /**
-     * Extract and save tokens.
-     *
-     * @param mixed $orderId
-     *
-     * @return void
-     * @throws Exception
-     */
-    public function savePaymentTokens($orderId);
-
-    /**
-     * Extract and save tokens.
-     *
-     * @param mixed $orderId
-     *
-     * @return void
-     * @throws Exception
-     */
-    public function savePaymentOrderTokens($orderId);
 }

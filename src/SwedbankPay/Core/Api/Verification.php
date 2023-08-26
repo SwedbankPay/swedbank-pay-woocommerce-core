@@ -184,10 +184,10 @@ class Verification extends Data implements VerificationInterface
     /**
      * Get Transaction data.
      *
-     * @return Transaction
+     * @return FinancialTransaction
      */
     public function getTransaction()
     {
-        return new Transaction($this->getData(self::TRANSACTION));
+        return new FinancialTransaction($this->getData(self::TRANSACTION));
     }
 }

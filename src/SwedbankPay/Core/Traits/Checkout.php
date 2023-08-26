@@ -1,16 +1,14 @@
 <?php
 
-namespace SwedbankPay\Core\Library\Methods;
+namespace SwedbankPay\Core\Traits;
 
-use SwedbankPay\Api\Service\Paymentorder\Resource\Collection\PaymentorderItemsCollection;
-use SwedbankPay\Core\PaymentAdapterInterface;
+use SwedbankPay\Core\Adapter\PaymentAdapterInterface;
 use SwedbankPay\Core\Api\Response;
-use SwedbankPay\Core\Api\Transaction;
+use SwedbankPay\Core\Api\FinancialTransaction;
 use SwedbankPay\Core\Exception;
 use SwedbankPay\Core\Log\LogLevel;
 use SwedbankPay\Core\Order;
 use SwedbankPay\Core\OrderItemInterface;
-
 use SwedbankPay\Api\Client\Exception as ClientException;
 use SwedbankPay\Api\Service\Paymentorder\Resource\Request\Paymentorder;
 use SwedbankPay\Api\Service\Paymentorder\Resource\Collection\OrderItemsCollection;
@@ -23,13 +21,9 @@ use SwedbankPay\Api\Service\Paymentorder\Request\Purchase;
 use SwedbankPay\Api\Service\Paymentorder\Request\Verify;
 use SwedbankPay\Api\Service\Paymentorder\Request\Recur;
 use SwedbankPay\Api\Service\Paymentorder\Resource\PaymentorderObject;
-use SwedbankPay\Api\Service\Paymentorder\Resource\PaymentorderRiskIndicator;
 use SwedbankPay\Api\Service\Data\ResponseInterface as ResponseServiceInterface;
 use SwedbankPay\Api\Service\Paymentorder\Transaction\Resource\Request\Transaction as TransactionData;
 use SwedbankPay\Api\Service\Paymentorder\Transaction\Resource\Request\TransactionObject;
-use SwedbankPay\Api\Service\Paymentorder\Transaction\Request\TransactionCapture;
-use SwedbankPay\Api\Service\Paymentorder\Transaction\Request\TransactionCancel;
-use SwedbankPay\Api\Service\Paymentorder\Transaction\Request\TransactionReversal;
 use SwedbankPay\Api\Service\Paymentorder\Transaction\Request\TransactionCaptureV3;
 use SwedbankPay\Api\Service\Paymentorder\Transaction\Request\TransactionCancelV3;
 use SwedbankPay\Api\Service\Paymentorder\Transaction\Request\TransactionReversalV3;
@@ -41,9 +35,6 @@ trait Checkout
      *
      * @param mixed $orderId
      * @param string|null $consumerProfileRef
-     * @param bool $genPaymentToken
-     * @param bool $genRecurrenceToken
-     * @param bool $genUnscheduledToken
      *
      * @return Response
      * @throws Exception
@@ -54,10 +45,7 @@ trait Checkout
      */
     public function initiatePaymentOrderPurchase(
         $orderId,
-        $consumerProfileRef = null,
-        $genPaymentToken = false,
-        $genRecurrenceToken = false,
-        $genUnscheduledToken = false
+        $consumerProfileRef = null
     ) {
         /** @var Order $order */
         $order = $this->getOrder($orderId);
@@ -79,9 +67,6 @@ trait Checkout
         // Add metadata
         $metadata = new PaymentorderMetadata();
         $metadata->setData('order_id', $order->getOrderId());
-
-        // Add Risk Indicator
-        $riskIndicator = new PaymentorderRiskIndicator($this->getRiskIndicator($orderId)->toArray());
 
         // Build items collection
         $items = $order->getItems();
@@ -110,14 +95,6 @@ trait Checkout
             $orderItems->addItem($orderItem);
         }
 
-        $items = new PaymentorderItemsCollection();
-        $items->addItem(['creditCard' => [
-            'rejectCreditCards' => $this->configuration->getRejectCreditCards(),
-            'rejectDebitCards' => $this->configuration->getRejectDebitCards(),
-            'rejectConsumerCards' => $this->configuration->getRejectConsumerCards(),
-            'rejectCorporateCards' => $this->configuration->getRejectCorporateCards()
-        ]]);
-
         $paymentOrder = new Paymentorder();
         $paymentOrder
             ->setOperation(self::OPERATION_PURCHASE)
@@ -127,18 +104,13 @@ trait Checkout
             ->setDescription($order->getDescription())
             ->setUserAgent($order->getHttpUserAgent())
             ->setLanguage($order->getLanguage())
-            ->setProductName($this->adapter->getProductName())
+            ->setProductName('Checkout3')
             ->setImplementation($this->adapter->getImplementation())
-            ->setGenerateRecurrenceToken($genRecurrenceToken)
-            ->setGeneratePaymentToken($genPaymentToken)
-            ->setGenerateUnscheduledToken($genUnscheduledToken)
             ->setDisablePaymentMenu(false)
             ->setUrls($urlData)
             ->setPayeeInfo($payeeInfo)
             ->setMetadata($metadata)
-            ->setOrderItems($orderItems)
-            ->setRiskIndicator($riskIndicator)
-            ->setItems($items);
+            ->setOrderItems($orderItems);
 
         $payer = $this->getPayer($order);
         $payer->setPayerReference($order->getPayerReference());
@@ -151,16 +123,10 @@ trait Checkout
 
         // Add payer info
         if ($this->configuration->getUsePayerInfo()) {
-            if ($this->adapter->getProductName() === PaymentAdapterInterface::PRODUCT_CHECKOUT3) {
-                $payer->setFirstName($order->getBillingFirstName())
-                    ->setLastName($order->getBillingLastName());
-            } else {
-                $payer->setWorkPhoneNumber($order->getBillingPhone())
-                      ->setHomePhoneNumber($order->getBillingPhone());
-            }
-
-            $payer->setEmail($order->getBillingEmail())
-                  ->setMsisdn($order->getBillingPhone());
+            $payer->setFirstName($order->getBillingFirstName())
+                ->setLastName($order->getBillingLastName())
+                ->setEmail($order->getBillingEmail())
+                ->setMsisdn($order->getBillingPhone());
         }
 
         $paymentOrder->setPayer($payer);
@@ -211,10 +177,7 @@ trait Checkout
      * @SuppressWarnings(PHPMD.ElseExpression)
      */
     public function initiatePaymentOrderVerify(
-        $orderId,
-        $genPaymentToken = false,
-        $genRecurrenceToken = false,
-        $genUnscheduledToken = false
+        $orderId
     ) {
         /** @var Order $order */
         $order = $this->getOrder($orderId);
@@ -236,31 +199,14 @@ trait Checkout
         $metadata = new PaymentorderMetadata();
         $metadata->setData('order_id', $order->getOrderId());
 
-        // Add Risk Indicator
-        $riskIndicator = new PaymentorderRiskIndicator($this->getRiskIndicator($orderId)->toArray());
-
-        $items = new PaymentorderItemsCollection();
-        $items->addItem(['creditCard' => [
-            'rejectCreditCards' => $this->configuration->getRejectCreditCards(),
-            'rejectDebitCards' => $this->configuration->getRejectDebitCards(),
-            'rejectConsumerCards' => $this->configuration->getRejectConsumerCards(),
-            'rejectCorporateCards' => $this->configuration->getRejectCorporateCards()
-        ]]);
-
         $payer = $this->getPayer($order);
         $payer->setPayerReference($order->getPayerReference());
 
         // Add payer info
         if ($this->configuration->getUsePayerInfo()) {
-            if ($this->adapter->getProductName() === PaymentAdapterInterface::PRODUCT_CHECKOUT3) {
-                $payer->setFirstName($order->getBillingFirstName())
-                      ->setLastName($order->getBillingLastName());
-            } else {
-                $payer->setWorkPhoneNumber($order->getBillingPhone())
-                      ->setHomePhoneNumber($order->getBillingPhone());
-            }
-
-            $payer->setEmail($order->getBillingEmail())
+            $payer->setFirstName($order->getBillingFirstName())
+                  ->setLastName($order->getBillingLastName())
+                  ->setEmail($order->getBillingEmail())
                   ->setMsisdn($order->getBillingPhone());
         }
 
@@ -274,16 +220,11 @@ trait Checkout
             ->setDescription('Verification of Credit Card')
             ->setUserAgent($order->getHttpUserAgent())
             ->setLanguage($order->getLanguage())
-            ->setProductName($this->adapter->getProductName())
+            ->setProductName('Checkout3')
             ->setImplementation($this->adapter->getImplementation())
-            ->setGenerateRecurrenceToken($genRecurrenceToken)
-            ->setGeneratePaymentToken($genPaymentToken)
-            ->setGenerateUnscheduledToken($genUnscheduledToken)
             ->setUrls($urlData)
             ->setPayeeInfo($payeeInfo)
-            ->setMetadata($metadata)
-            ->setRiskIndicator($riskIndicator)
-            ->setItems($items);
+            ->setMetadata($metadata);
 
         $paymentOrderObject = new PaymentorderObject();
         $paymentOrderObject->setPaymentorder($paymentOrder);
@@ -352,9 +293,6 @@ trait Checkout
         $metadata = new PaymentorderMetadata();
         $metadata->setData('order_id', $order->getOrderId());
 
-        // Add Risk Indicator
-        $riskIndicator = new PaymentorderRiskIndicator($this->getRiskIndicator($orderId)->toArray());
-
         // Build items collection
         $items = $order->getItems();
         $orderItems = new OrderItemsCollection();
@@ -386,22 +324,18 @@ trait Checkout
         $paymentOrder
             ->setOperation(self::OPERATION_RECUR)
             ->setRecurrenceToken($recurrenceToken)
-            ->setIntent(
-                $this->configuration->getAutoCapture() ?
-                    self::INTENT_AUTOCAPTURE : self::INTENT_AUTHORIZATION
-            )
+            ->setIntent(self::INTENT_AUTHORIZATION)
             ->setCurrency($order->getCurrency())
             ->setAmount($order->getAmountInCents())
             ->setVatAmount($order->getVatAmountInCents())
             ->setDescription($order->getDescription())
             ->setUserAgent($order->getHttpUserAgent())
             ->setLanguage($order->getLanguage())
-            ->setProductName($this->adapter->getProductName())
+            ->setProductName('Checkout3')
             ->setImplementation($this->adapter->getImplementation())
             ->setUrls($urlData)
             ->setPayeeInfo($payeeInfo)
             ->setMetadata($metadata)
-            ->setRiskIndicator($riskIndicator)
             ->setOrderItems($orderItems);
 
         $paymentOrderObject = new PaymentorderObject();
@@ -472,9 +406,6 @@ trait Checkout
         $metadata = new PaymentorderMetadata();
         $metadata->setData('order_id', $order->getOrderId());
 
-        // Add Risk Indicator
-        $riskIndicator = new PaymentorderRiskIndicator($this->getRiskIndicator($orderId)->toArray());
-
         // Build items collection
         $items = $order->getItems();
         $orderItems = new OrderItemsCollection();
@@ -506,10 +437,7 @@ trait Checkout
         $paymentOrder
             ->setOperation(self::OPERATION_UNSCHEDULED_PURCHASE)
             ->setUnscheduledToken($unscheduledToken)
-            ->setIntent(
-                $this->configuration->getAutoCapture() ?
-                    self::INTENT_AUTOCAPTURE : self::INTENT_AUTHORIZATION
-            )
+            ->setIntent(self::INTENT_AUTHORIZATION)
             ->setCurrency($order->getCurrency())
             ->setAmount($order->getAmountInCents())
             ->setVatAmount($order->getVatAmountInCents())
@@ -519,7 +447,6 @@ trait Checkout
             ->setUrls($urlData)
             ->setPayeeInfo($payeeInfo)
             ->setMetadata($metadata)
-            ->setRiskIndicator($riskIndicator)
             ->setOrderItems($orderItems);
 
         $payer = $this->getPayer($order);
@@ -527,15 +454,9 @@ trait Checkout
 
         // Add payer info
         if ($this->configuration->getUsePayerInfo()) {
-            if ($this->adapter->getProductName() === PaymentAdapterInterface::PRODUCT_CHECKOUT3) {
-                $payer->setFirstName($order->getBillingFirstName())
-                      ->setLastName($order->getBillingLastName());
-            } else {
-                $payer->setWorkPhoneNumber($order->getBillingPhone())
-                      ->setHomePhoneNumber($order->getBillingPhone());
-            }
-
-            $payer->setEmail($order->getBillingEmail())
+            $payer->setFirstName($order->getBillingFirstName())
+                  ->setLastName($order->getBillingLastName())
+                  ->setEmail($order->getBillingEmail())
                   ->setMsisdn($order->getBillingPhone());
         }
 
@@ -619,40 +540,6 @@ trait Checkout
     }
 
     /**
-     * Get Payment ID url by Payment Order.
-     *
-     * @param string $paymentOrderId
-     *
-     * @return string|false
-     */
-    public function getPaymentIdByPaymentOrder($paymentOrderId)
-    {
-        $paymentOrder = $this->request('GET', $paymentOrderId);
-        if (isset($paymentOrder['paymentOrder']) && $paymentOrder['paymentOrder']['currentPayment']) {
-            $currentPayment = $this->request('GET', $paymentOrder['paymentOrder']['currentPayment']['id']);
-            if (isset($currentPayment['payment'])) {
-                return $currentPayment['payment']['id'];
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Get Current Payment Resource.
-     * The currentpayment resource displays the payment that are active within the payment order container.
-     *
-     * @param string $paymentOrderId
-     * @return array|false
-     */
-    public function getCheckoutCurrentPayment($paymentOrderId)
-    {
-        $payment = $this->request('GET', $paymentOrderId . '/currentpayment');
-
-        return isset($payment['payment']) ? $payment['payment'] : false;
-    }
-
-    /**
      * Capture Checkout.
      *
      * @param mixed $orderId
@@ -729,12 +616,7 @@ trait Checkout
         // Process transaction object
         $transaction = $this->adapter->processTransactionObject($transaction, $orderId);
 
-        if ($this->adapter->getProductName() === PaymentAdapterInterface::PRODUCT_CHECKOUT3) {
-            $requestService = new TransactionCaptureV3($transaction);
-        } else {
-            $requestService = new TransactionCapture($transaction);
-        }
-
+        $requestService = new TransactionCaptureV3($transaction);
         $requestService->setClient($this->client)
                        ->setPaymentOrderId($paymentOrderId);
 
@@ -750,14 +632,14 @@ trait Checkout
             $result = $responseService->getResponseData();
 
             // Save transaction
-            /** @var Transaction $transaction */
+            /** @var FinancialTransaction $transaction */
             $transaction = $result['capture']['transaction'];
             if (is_array($transaction)) {
-                $transaction = new Transaction($transaction);
+                $transaction = new FinancialTransaction($transaction);
             }
 
-            $this->saveTransaction($orderId, $transaction);
-            $this->processTransaction($orderId, $transaction);
+            $this->saveFinancialTransaction($orderId, $transaction);
+            $this->processFinancialTransaction($orderId, $transaction);
 
             return new Response($result);
         } catch (ClientException $e) {
@@ -818,12 +700,7 @@ trait Checkout
         // Process transaction object
         $transaction = $this->adapter->processTransactionObject($transaction, $orderId);
 
-        if ($this->adapter->getProductName() === PaymentAdapterInterface::PRODUCT_CHECKOUT3) {
-            $requestService = new TransactionCancelV3($transaction);
-        } else {
-            $requestService = new TransactionCancel($transaction);
-        }
-
+        $requestService = new TransactionCancelV3($transaction);
         $requestService->setClient($this->client)
                        ->setPaymentOrderId($paymentOrderId);
 
@@ -839,14 +716,14 @@ trait Checkout
             $result = $responseService->getResponseData();
 
             // Save transaction
-            /** @var Transaction $transaction */
+            /** @var FinancialTransaction $transaction */
             $transaction = $result['cancellation']['transaction'];
             if (is_array($transaction)) {
-                $transaction = new Transaction($transaction);
+                $transaction = new FinancialTransaction($transaction);
             }
 
-            $this->saveTransaction($orderId, $transaction);
-            $this->processTransaction($orderId, $transaction);
+            $this->saveFinancialTransaction($orderId, $transaction);
+            $this->processFinancialTransaction($orderId, $transaction);
 
             return new Response($result);
         } catch (ClientException $e) {
@@ -942,12 +819,7 @@ trait Checkout
         // Process transaction object
         $transaction = $this->adapter->processTransactionObject($transaction, $orderId);
 
-        if ($this->adapter->getProductName() === PaymentAdapterInterface::PRODUCT_CHECKOUT3) {
-            $requestService = new TransactionReversalV3($transaction);
-        } else {
-            $requestService = new TransactionReversal($transaction);
-        }
-
+        $requestService = new TransactionReversalV3($transaction);
         $requestService->setClient($this->client)
                        ->setPaymentOrderId($paymentOrderId);
 
@@ -963,14 +835,14 @@ trait Checkout
             $result = $responseService->getResponseData();
 
             // Save transaction
-            /** @var Transaction $transaction */
+            /** @var FinancialTransaction $transaction */
             $transaction = $result['reversal']['transaction'];
             if (is_array($transaction)) {
-                $transaction = new Transaction($transaction);
+                $transaction = new FinancialTransaction($transaction);
             }
 
-            $this->saveTransaction($orderId, $transaction);
-            $this->processTransaction($orderId, $transaction);
+            $this->saveFinancialTransaction($orderId, $transaction);
+            $this->processFinancialTransaction($orderId, $transaction);
 
             return new Response($result);
         } catch (ClientException $e) {
@@ -989,26 +861,6 @@ trait Checkout
     }
 
     /**
-     * Delete Token.
-     *
-     * @param string $paymentToken
-     *
-     * @return void
-     * @throws Exception
-     */
-    public function deletePaymentToken($paymentToken)
-    {
-        $this->request(
-            'PATCH',
-            sprintf(self::PAYMENTORDER_DELETE_TOKEN_URL, $paymentToken),
-            [
-                'state' => 'Deleted',
-                'comment' => 'Customer removed the token'
-            ]
-        );
-    }
-
-    /**
      * Get `PaymentorderPayer`.
      *
      * @param Order $order
@@ -1021,16 +873,12 @@ trait Checkout
     {
         $payer = new PaymentorderPayer();
 
-        if ($this->adapter->getProductName() === PaymentAdapterInterface::PRODUCT_CHECKOUT3) {
-            if ($order->needsShipping()) {
-                $payer->setDigitalProducts(false);
-
-                if ($this->adapter->getImplementation() !== PaymentAdapterInterface::IMPLEMENTATION_PAYMENTS_ONLY) {
-                    $payer->setShippingAddressRestrictedToCountryCodes(['XX']);
-                }
-            } else {
-                $payer->setDigitalProducts(true);
+        if ($order->needsShipping()) {
+            if ($this->adapter->getImplementation() !== PaymentAdapterInterface::IMPLEMENTATION_PAYMENTS_ONLY) {
+                $payer->setShippingAddressRestrictedToCountryCodes(['XX']);
             }
+        } else {
+            $payer->setDigitalProducts(true);
         }
 
         return $payer;

@@ -4,7 +4,7 @@ use PHPUnit\Framework\MockObject\MockBuilder;
 use SwedbankPay\Api\Client\Client;
 use SwedbankPay\Core\Core;
 use SwedbankPay\Core\Configuration;
-use SwedbankPay\Core\PaymentAdapterInterface;
+use SwedbankPay\Core\Adapter\PaymentAdapterInterface;
 
 class TestCase extends \PHPUnit\Framework\TestCase
 {
@@ -84,10 +84,6 @@ class TestCase extends \PHPUnit\Framework\TestCase
             ->willReturn($this->adapter->getPayeeInfo(1));
 
         $this->adapterMock->expects($this->any())
-            ->method('getRiskIndicator')
-            ->willReturn($this->adapter->getRiskIndicator(1));
-
-        $this->adapterMock->expects($this->any())
             ->method('processPaymentObject')
             ->willReturnCallback(function ($paymentObject, $orderId) {
                 return $this->adapter->processPaymentObject($paymentObject, $orderId);
@@ -129,12 +125,10 @@ class TestCase extends \PHPUnit\Framework\TestCase
             ->getMock();
 
         $map = [
-            'getAutoCapture' => false,
             'getSubsite' => 'subsite',
             'getPayeeId' => PAYEE_ID,
             'getPayeeName' => 'payee-name',
             'getAccessToken' => ACCESS_TOKEN,
-            'getMode' => true,
             'getDebug' => false,
         ];
 

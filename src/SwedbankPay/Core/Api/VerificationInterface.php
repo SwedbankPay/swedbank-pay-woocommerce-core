@@ -137,7 +137,7 @@ interface VerificationInterface
     /**
      * Get Transaction data.
      *
-     * @return Transaction
+     * @return FinancialTransaction
      */
     public function getTransaction();
 }

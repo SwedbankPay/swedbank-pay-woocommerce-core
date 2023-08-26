@@ -69,7 +69,7 @@ class OrderActionTest extends TestCase
         ';
 
         $transaction = json_decode($data, true);
-        $result = $this->core->processTransaction(1, $transaction);
+        $result = $this->core->processFinancialTransaction(1, $transaction);
         $this->assertEquals(null, $result);
     }
 

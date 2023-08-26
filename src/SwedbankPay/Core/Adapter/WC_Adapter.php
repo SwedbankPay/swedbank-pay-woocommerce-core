@@ -5,13 +5,10 @@ namespace SwedbankPay\Core\Adapter;
 use Automattic\WooCommerce\Utilities\OrderUtil;
 use SwedbankPay\Core\Exception;
 use SwedbankPay\Core\Log\LogLevel;
-use SwedbankPay\Core\PaymentAdapter;
-use SwedbankPay\Core\PaymentAdapterInterface;
 use SwedbankPay\Core\ConfigurationInterface;
 use SwedbankPay\Core\Order\PlatformUrlsInterface;
 use SwedbankPay\Core\OrderInterface;
 use SwedbankPay\Core\OrderItemInterface;
-use SwedbankPay\Core\Order\RiskIndicatorInterface;
 use SwedbankPay\Core\Order\PayeeInfoInterface;
 use WC_Payment_Gateway;
 use WC_Log_Levels;
@@ -28,7 +25,7 @@ use WC_Order_Item_Fee;
  * @SuppressWarnings(PHPMD.TooManyPublicMethods)
  */
 // phpcs:ignore
-class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
+class WC_Adapter implements PaymentAdapterInterface
 {
     /**
      * @var WC_Payment_Gateway
@@ -125,11 +122,6 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
                 $this->gateway->id
             ),
             ConfigurationInterface::MODE => 'yes' === $this->gateway->testmode,
-            ConfigurationInterface::AUTO_CAPTURE => apply_filters(
-                'swedbank_pay_autocapture',
-                'yes' === $this->gateway->auto_capture,
-                $this->gateway->id
-            ),
             ConfigurationInterface::SUBSITE => apply_filters(
                 'swedbank_pay_subsite',
                 $this->gateway->subsite,
@@ -140,25 +132,12 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
                 $this->gateway->culture,
                 $this->gateway->id
             ),
-            ConfigurationInterface::CHECKOUT_METHOD => $this->gateway->method,
-            ConfigurationInterface::SAVE_CC => property_exists($this->gateway, 'save_cc')
-                && 'yes' === $this->gateway->save_cc,
             ConfigurationInterface::TERMS_URL => property_exists($this->gateway, 'terms_url') ?
                 $this->gateway->terms_url : '',
             ConfigurationInterface::LOGO_URL => property_exists($this->gateway, 'logo_url') ?
                 $this->gateway->logo_url : '',
             ConfigurationInterface::USE_PAYER_INFO => property_exists($this->gateway, 'use_payer_info') ?
                 'yes' === $this->gateway->use_payer_info : true,
-            ConfigurationInterface::USE_CARDHOLDER_INFO => property_exists($this->gateway, 'use_cardholder_info') ?
-                'yes' === $this->gateway->use_cardholder_info : true,
-            ConfigurationInterface::REJECT_CREDIT_CARDS => property_exists($this->gateway, 'reject_credit_cards') ?
-                'yes' === $this->gateway->reject_credit_cards : true,
-            ConfigurationInterface::REJECT_DEBIT_CARDS => property_exists($this->gateway, 'reject_debit_cards') ?
-                'yes' === $this->gateway->reject_debit_cards : true,
-            ConfigurationInterface::REJECT_CONSUMER_CARDS => property_exists($this->gateway, 'reject_consumer_cards') ?
-                'yes' === $this->gateway->reject_consumer_cards : true,
-            ConfigurationInterface::REJECT_CORPORATE_CARDS => property_exists($this->gateway, 'reject_corporate_cards') ?
-                'yes' === $this->gateway->reject_corporate_cards : true,
         );
         // phpcs:enable
     }
@@ -183,53 +162,13 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
             WC()->api_request_url(get_class($this->gateway))
         );
 
-        // When paymentUrl was provided in the request then "seamless view" will be locked.
-        $paymentUrl = null;
-        if ($this->getConfiguration()[ConfigurationInterface::CHECKOUT_METHOD] ===
-            ConfigurationInterface::METHOD_SEAMLESS
-        ) {
-            $paymentUrl = add_query_arg(array('payment_url' => '1'), wc_get_checkout_url());
-        }
-
-        if ($this->gateway->is_new_credit_card) {
-            return array(
-                PlatformUrlsInterface::COMPLETE_URL => add_query_arg(
-                    'action',
-                    'swedbank_card_store',
-                    admin_url('admin-ajax.php')
-                ),
-                PlatformUrlsInterface::CANCEL_URL => wc_get_account_endpoint_url('payment-methods'),
-                PlatformUrlsInterface::CALLBACK_URL => $callbackUrl,
-                PlatformUrlsInterface::TERMS_URL => $this->getConfiguration()[ConfigurationInterface::TERMS_URL],
-                PlatformUrlsInterface::LOGO_URL => $this->getConfiguration()[ConfigurationInterface::LOGO_URL],
-                PlatformUrlsInterface::PAYMENT_URL => $paymentUrl
-            );
-        }
-
-        if ($this->gateway->is_change_credit_card) {
-            return array(
-                PlatformUrlsInterface::COMPLETE_URL => add_query_arg(
-                    array(
-                        'verify' => 'true',
-                        'key' => $order->get_order_key(),
-                    ),
-                    $this->gateway->get_return_url($order)
-                ),
-                PlatformUrlsInterface::CANCEL_URL => $order->get_cancel_order_url_raw(),
-                PlatformUrlsInterface::CALLBACK_URL => $callbackUrl,
-                PlatformUrlsInterface::TERMS_URL => $this->getConfiguration()[ConfigurationInterface::TERMS_URL],
-                PlatformUrlsInterface::LOGO_URL => $this->getConfiguration()[ConfigurationInterface::LOGO_URL],
-                PlatformUrlsInterface::PAYMENT_URL => $paymentUrl
-            );
-        }
-
         return array(
             PlatformUrlsInterface::COMPLETE_URL => $this->gateway->get_return_url($order),
             PlatformUrlsInterface::CANCEL_URL => $order->get_cancel_order_url_raw(),
             PlatformUrlsInterface::CALLBACK_URL => $callbackUrl,
             PlatformUrlsInterface::TERMS_URL => $this->getConfiguration()[ConfigurationInterface::TERMS_URL],
             PlatformUrlsInterface::LOGO_URL => $this->getConfiguration()[ConfigurationInterface::LOGO_URL],
-            PlatformUrlsInterface::PAYMENT_URL => $paymentUrl
+            PlatformUrlsInterface::PAYMENT_URL => null // Seamless requires it
         );
     }
 
@@ -248,6 +187,12 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
     public function getOrderData($orderId)
     {
         $order = wc_get_order($orderId);
+
+        // Load parent order if have `OrderRefund`
+        if ('order_refund' === $order->get_type()) {
+            $order = wc_get_order($order->get_parent_id());
+        }
+
         // Force a new DB read (and update cache) for meta data.
         $order->read_meta_data(true);
 
@@ -290,9 +235,9 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
             // Get Product Class
             $productClass = 'ProductGroup1';
             if ($product) {
-                $productClass = $product->get_meta('_sb_product_class');
+                $productClass = $product->get_meta('_swedbank_pay_product_class');
                 if (empty($productClass)) {
-                    $productClass = apply_filters('sb_product_class', 'ProductGroup1', $product);
+                    $productClass = apply_filters('swedbank_pay_product_class', 'ProductGroup1', $product);
                 }
             }
 
@@ -356,7 +301,7 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
                     'woocommerce'
                 ),
                 OrderItemInterface::FIELD_TYPE => OrderItemInterface::TYPE_SHIPPING,
-                OrderItemInterface::FIELD_CLASS => apply_filters('sb_product_class_shipping', 'ProductGroup1', $order),
+                OrderItemInterface::FIELD_CLASS => apply_filters('swedbank_pay_product_class_shipping', 'ProductGroup1', $order),
                 OrderItemInterface::FIELD_QTY => 1,
                 OrderItemInterface::FIELD_QTY_UNIT => 'pcs',
                 OrderItemInterface::FIELD_UNITPRICE => round($shippingWithTax * 100),
@@ -378,7 +323,7 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
                 OrderItemInterface::FIELD_REFERENCE => 'fee',
                 OrderItemInterface::FIELD_NAME => $orderFee->get_name(),
                 OrderItemInterface::FIELD_TYPE => OrderItemInterface::TYPE_OTHER,
-                OrderItemInterface::FIELD_CLASS => apply_filters('sb_product_class_fee', 'ProductGroup1', $order),
+                OrderItemInterface::FIELD_CLASS => apply_filters('swedbank_pay_product_class_fee', 'ProductGroup1', $order),
                 OrderItemInterface::FIELD_QTY => 1,
                 OrderItemInterface::FIELD_QTY_UNIT => 'pcs',
                 OrderItemInterface::FIELD_UNITPRICE => round($feeWithTax * 100),
@@ -399,7 +344,7 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
                 OrderItemInterface::FIELD_REFERENCE => 'discount',
                 OrderItemInterface::FIELD_NAME => __('Discount', 'swedbank-pay-woocommerce-payments'),
                 OrderItemInterface::FIELD_TYPE => OrderItemInterface::TYPE_DISCOUNT,
-                OrderItemInterface::FIELD_CLASS => apply_filters('sb_product_class_discount', 'ProductGroup1', $order),
+                OrderItemInterface::FIELD_CLASS => apply_filters('swedbank_pay_product_class_discount', 'ProductGroup1', $order),
                 OrderItemInterface::FIELD_QTY => 1,
                 OrderItemInterface::FIELD_QTY_UNIT => 'pcs',
                 OrderItemInterface::FIELD_UNITPRICE => round(-100 * $discountWithTax),
@@ -411,7 +356,15 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
 
         // Payer reference
         // Get Customer UUID
-        $userId = $order->get_customer_id();
+        if (method_exists($order, 'get_customer_id')) {
+            $userId = $order->get_customer_id();
+        } elseif (method_exists($order, 'get_report_customer_id')) {
+            /** @var \Automattic\WooCommerce\Admin\Overrides\OrderRefund $order */
+            $userId = $order->get_report_customer_id();
+        } else {
+            $userId = get_current_user_id();
+        }
+
         if ($userId > 0) {
             $payerReference = get_user_meta($userId, '_payex_customer_uuid', true);
             if (empty($payerReference)) {
@@ -436,7 +389,6 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
         }
 
         return array(
-            OrderInterface::PAYMENT_METHOD => $this->getPaymentMethod($orderId),
             OrderInterface::ORDER_ID => $order->get_id(),
             OrderInterface::AMOUNT => apply_filters(
                 'swedbank_pay_order_amount',
@@ -471,7 +423,6 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
             OrderInterface::NEEDS_SAVE_TOKEN_FLAG => '1' === $order->get_meta('_payex_generate_token') &&
                 0 === count($order->get_payment_tokens()),
             OrderInterface::NEEDS_SHIPPING => $needsShipping,
-
             OrderInterface::HTTP_ACCEPT => isset($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : null,
             OrderInterface::HTTP_USER_AGENT => $userAgent,
             OrderInterface::BILLING_COUNTRY => $billingCountry,
@@ -512,58 +463,6 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
             OrderInterface::ITEMS => $items,
             OrderInterface::LANGUAGE => $this->getConfiguration()[ConfigurationInterface::LANGUAGE],
         );
-    }
-
-    /**
-     * Get Risk Indicator of Order.
-     *
-     * @param mixed $orderId
-     *
-     * @return array
-     * @SuppressWarnings(PHPMD.ElseExpression)
-     */
-    public function getRiskIndicator($orderId)
-    {
-        $order = wc_get_order($orderId);
-
-        $result = array();
-
-        // Downloadable
-        if ($order->has_downloadable_item()) {
-            // For electronic delivery, the email address to which the merchandise was delivered
-            $result[RiskIndicatorInterface::DELIVERY_EMAIL_ADDRESS] = $order->get_billing_email();
-
-            // Electronic Delivery
-            $result[RiskIndicatorInterface::DELIVERY_TIME_FRAME_INDICATOR] = '01';
-
-            // Digital goods, includes online services, electronic giftcards and redemption codes
-            $result[RiskIndicatorInterface::SHIP_INDICATOR] = '05';
-        }
-
-        // Shippable
-        if ($order->needs_processing()) {
-            // Two-day or more shipping
-            $result['deliveryTimeFrameIndicator'] = '04';
-
-            // Compare billing and shipping addresses
-            $billing = $order->get_address('billing');
-            $shipping = $order->get_address('shipping');
-            $diff = array_diff($billing, $shipping);
-            if (0 === count($diff)) {
-                // Ship to cardholder's billing address
-                $result[RiskIndicatorInterface::SHIP_INDICATOR] = '01';
-            } else {
-                // Ship to address that is different than cardholder's billing address
-                $result[RiskIndicatorInterface::SHIP_INDICATOR] = '03';
-            }
-        }
-
-        // Is Gift Card
-        $result[RiskIndicatorInterface::GIFT_CARD_PURCHASE] = false;
-
-        // @todo Add features of WooThemes Order Delivery and Pre-Orders WooCommerce Extensions
-
-        return apply_filters('swedbank_pay_risk_indicator', $result, $order, $this);
     }
 
     /**
@@ -669,7 +568,7 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
         $order = wc_get_order($orderId);
 
         if ($transactionNumber) {
-            $transactions = (array) $order->get_meta('_sb_transactions');
+            $transactions = (array) $order->get_meta('_swedbank_pay_transactions');
             if (in_array($transactionNumber, $transactions)) {
                 $this->log('info', sprintf('Skip order status update #%s to %s', $orderId, $status));
                 return;
@@ -678,7 +577,7 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
             $transactions[] = $transactionNumber;
 
             $order->set_transaction_id($transactionNumber);
-            $order->update_meta_data('_sb_transactions', $transactions);
+            $order->update_meta_data('_swedbank_pay_transactions', $transactions);
             $order->save();
         }
 
@@ -784,23 +683,6 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
     }
 
     /**
-     * Set Payment Id to Order.
-     *
-     * @param mixed $orderId
-     * @param string $paymentId
-     *
-     * @return void
-     */
-    public function setPaymentId($orderId, $paymentId)
-    {
-        $order = wc_get_order($orderId);
-
-        $order->update_meta_data('_payex_payment_id', $paymentId);
-        $order->save();
-        clean_post_cache($order->get_id());
-    }
-
-    /**
      * Set Payment Order Id to Order.
      *
      * @param mixed $orderId
@@ -829,43 +711,12 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
     }
 
     /**
-     * Get Payment Method.
-     *
-     * @param mixed $orderId
-     *
-     * @return string|null Returns method or null if not exists
-     */
-    public function getPaymentMethod($orderId)
-    {
-        $order = wc_get_order($orderId);
-
-        switch ($order->get_payment_method()) {
-            case 'payex_checkout':
-                return PaymentAdapterInterface::METHOD_CHECKOUT;
-            case 'payex_psp_cc':
-                return PaymentAdapterInterface::METHOD_CC;
-            case 'payex_psp_invoice':
-                return PaymentAdapterInterface::METHOD_INVOICE;
-            case 'payex_psp_mobilepay':
-                return PaymentAdapterInterface::METHOD_MOBILEPAY;
-            case 'payex_psp_swish':
-                return PaymentAdapterInterface::METHOD_SWISH;
-            case 'payex_psp_trustly':
-                return PaymentAdapterInterface::METHOD_TRUSTLY;
-            case 'payex_psp_vipps':
-                return PaymentAdapterInterface::METHOD_VIPPS;
-            default:
-                return null;
-        }
-    }
-
-    /**
      * Save Transaction data.
      *
      * @param mixed $orderId
      * @param array $transactionData
      */
-    public function saveTransaction($orderId, array $transactionData = array())
+    public function saveFinancialTransaction($orderId, array $transactionData = array())
     {
         $this->gateway->transactions->import($transactionData, $orderId);
     }
@@ -878,185 +729,9 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
      *
      * @return array
      */
-    public function findTransaction($field, $value)
+    public function findFinancialTransaction($field, $value)
     {
         return $this->gateway->transactions->get_by($field, $value, true);
-    }
-
-    /**
-     * Save Payment Token.
-     *
-     * @param mixed $customerId
-     * @param string|null $paymentToken
-     * @param string|null $recurrenceToken
-     * @param string|null $unscheduledToken
-     * @param string $cardBrand
-     * @param string $maskedPan
-     * @param string $expiryDate
-     * @param mixed|null $orderId
-     *
-     * @return void
-     *
-     * @throws Exception
-     * @SuppressWarnings(Generic.Files.LineLength.TooLong)
-     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
-     * @SuppressWarnings(PHPMD.NPathComplexity)
-     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
-     */
-    public function savePaymentToken(
-        $customerId,
-        $paymentToken,
-        $recurrenceToken,
-        $unscheduledToken,
-        $cardBrand,
-        $maskedPan,
-        $expiryDate,
-        $orderId = null
-    ) {
-        global $wpdb;
-
-        if (!property_exists($this->gateway, 'payment_token_class')) {
-            return;
-        }
-
-        if (!$this->gateway->payment_token_class) {
-            return;
-        }
-
-        // Get token class
-        if (!is_string($this->gateway->payment_token_class) ||
-            !class_exists($this->gateway->payment_token_class, false)
-        ) {
-            throw new Exception('Payment Token class is not defined.');
-        }
-
-        // Check if paymentToken
-        $tokenId = null;
-        if (!empty($paymentToken) && $paymentToken !== 'none') {
-            $query = "SELECT token_id FROM `{$wpdb->prefix}woocommerce_payment_tokens` WHERE `token` = %s;";
-            $tokenId = $wpdb->get_var($wpdb->prepare($query, $paymentToken));
-        }
-
-        /** @var \SwedbankPay\Payments\WooCommerce\WC_Payment_Token_Swedbank_Pay $token */
-        /** @var \SwedbankPay\Checkout\WooCommerce\WC_Payment_Token_Swedbank_Pay $token */
-        $token = new $this->gateway->payment_token_class($tokenId);
-
-        if (!$tokenId) {
-            $expiryDate = explode('/', $expiryDate);
-
-            $token->set_gateway_id($this->gateway->id);
-            $token->set_token($paymentToken ? $paymentToken : 'none');
-            $token->set_last4(substr($maskedPan, -4));
-            $token->set_expiry_year($expiryDate[1]);
-            $token->set_expiry_month($expiryDate[0]);
-            $token->set_card_type(strtolower($cardBrand));
-            $token->set_user_id($customerId);
-            $token->set_masked_pan($maskedPan);
-        }
-
-        if ($paymentToken && method_exists($token, 'set_payment_token')) {
-            $token->set_payment_token($paymentToken);
-        }
-
-        if ($recurrenceToken) {
-            $token->set_recurrence_token($recurrenceToken);
-        }
-
-        if ($unscheduledToken && method_exists($token, 'set_unscheduled_token')) {
-            $token->set_unscheduled_token($unscheduledToken);
-        }
-
-        // Save token
-        try {
-            $token->save();
-            if (!$token->get_id()) {
-                throw new Exception('Unable to save the card.');
-            }
-        } catch (\Exception $e) {
-            $this->log('error', 'Failed to save card token: ' . $e->getMessage(), [
-                $paymentToken,
-                $recurrenceToken,
-                $maskedPan,
-                $expiryDate
-            ]);
-
-            throw new Exception('There was a problem adding the card.');
-        }
-
-        $this->log(
-            'info',
-            sprintf(
-                'Card %s %s %s/%s has been saved.',
-                strtoupper($cardBrand),
-                $maskedPan,
-                $expiryDate[0],
-                $expiryDate[1]
-            ),
-            [
-                $token->get_id(),
-                $paymentToken,
-                $recurrenceToken,
-                $unscheduledToken
-            ]
-        );
-
-        // Add payment token
-        if ($orderId) {
-            $order = wc_get_order($orderId);
-            $order->add_payment_token($token);
-
-            // Add order note
-            $order->add_order_note(
-                sprintf(
-                    'Card %s %s %s/%s has been saved.',
-                    strtoupper($cardBrand),
-                    $maskedPan,
-                    $expiryDate[0],
-                    $expiryDate[1]
-                )
-            );
-
-            // Assign payment token and order meta to subscription if applicable
-            if (function_exists('wcs_order_contains_subscription') &&
-                wcs_order_contains_subscription($order)
-            ) {
-                $subscriptions = wcs_get_subscriptions_for_order($orderId, array('order_type' => 'parent'));
-                foreach ($subscriptions as $subscription) {
-                    // Add payment meta
-                    $paymentId = $order->get_meta('_payex_payment_id');
-                    $paymentOrderId = $order->get_meta('_payex_paymentorder_id');
-
-                    /** @var \WC_Subscription $subscription */
-                    if (!empty($paymentId)) {
-                        $subscription->update_meta_data('_payex_payment_id', $paymentId);
-                    }
-
-                    if (!empty($paymentOrderId)) {
-                        $subscription->update_meta_data('_payex_paymentorder_id', $paymentOrderId);
-                    }
-
-                    // Add payment token
-                    $subscription->add_payment_token($token);
-                    $subscription->add_order_note(
-                        sprintf(
-                            __('Card: %s', 'woocommerce'),
-                            strip_tags($token->get_display_name())
-                        )
-                    );
-
-                    $subscription->save();
-                }
-            }
-
-            // Activate subscription if this is WC_Subscriptions
-            if (!$order->is_paid() &&
-                ((function_exists('wcs_order_contains_subscription') &&
-                  wcs_order_contains_subscription($order)) ||
-                 abs($order->get_total()) < 0.01)
-            ) {
-                $order->payment_complete();
-            }
-        }
     }
 
     /**
@@ -1199,20 +874,6 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
         );
 
         return count($orders) > 0;
-    }
-
-    /**
-     * Get Product Name.
-     *
-     * @return string|null
-     */
-    public function getProductName()
-    {
-        if (method_exists($this->gateway, 'get_product_name')) {
-            return $this->gateway->get_product_name();
-        }
-
-        return null;
     }
 
     /**
