@@ -1,3 +1,7 @@
+Version 5.3.1
+Changed
+- Use `wc_maybe_reduce_stock_levels` for stock reducing
+
 Version 5.3.0
 Changed
 - Improved messages of exceptions

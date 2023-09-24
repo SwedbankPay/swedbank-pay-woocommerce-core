@@ -683,10 +683,7 @@ class WC_Adapter extends PaymentAdapter implements PaymentAdapterInterface
                 // Set on-hold
                 if (!$order->has_status('on-hold')) {
                     // Reduce stock
-                    $orderStockReduced = $order->get_meta('_order_stock_reduced');
-                    if (!$orderStockReduced) {
-                        wc_reduce_stock_levels($order->get_id());
-                    }
+	                wc_maybe_reduce_stock_levels($order->get_id());
 
                     $order->update_status('on-hold', $message);
                 } elseif ($message) {
