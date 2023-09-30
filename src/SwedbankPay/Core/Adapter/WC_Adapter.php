@@ -303,7 +303,11 @@ class WC_Adapter implements PaymentAdapterInterface
                     'woocommerce'
                 ),
                 OrderItemInterface::FIELD_TYPE => OrderItemInterface::TYPE_SHIPPING,
-                OrderItemInterface::FIELD_CLASS => apply_filters('swedbank_pay_product_class_shipping', 'ProductGroup1', $order),
+                OrderItemInterface::FIELD_CLASS => apply_filters(
+                    'swedbank_pay_product_class_shipping',
+                    'ProductGroup1',
+                    $order
+                ),
                 OrderItemInterface::FIELD_QTY => 1,
                 OrderItemInterface::FIELD_QTY_UNIT => 'pcs',
                 OrderItemInterface::FIELD_UNITPRICE => round($shippingWithTax * 100),
@@ -325,7 +329,11 @@ class WC_Adapter implements PaymentAdapterInterface
                 OrderItemInterface::FIELD_REFERENCE => 'fee',
                 OrderItemInterface::FIELD_NAME => $orderFee->get_name(),
                 OrderItemInterface::FIELD_TYPE => OrderItemInterface::TYPE_OTHER,
-                OrderItemInterface::FIELD_CLASS => apply_filters('swedbank_pay_product_class_fee', 'ProductGroup1', $order),
+                OrderItemInterface::FIELD_CLASS => apply_filters(
+                    'swedbank_pay_product_class_fee',
+                    'ProductGroup1',
+                    $order
+                ),
                 OrderItemInterface::FIELD_QTY => 1,
                 OrderItemInterface::FIELD_QTY_UNIT => 'pcs',
                 OrderItemInterface::FIELD_UNITPRICE => round($feeWithTax * 100),
@@ -346,7 +354,11 @@ class WC_Adapter implements PaymentAdapterInterface
                 OrderItemInterface::FIELD_REFERENCE => 'discount',
                 OrderItemInterface::FIELD_NAME => __('Discount', 'swedbank-pay-woocommerce-payments'),
                 OrderItemInterface::FIELD_TYPE => OrderItemInterface::TYPE_DISCOUNT,
-                OrderItemInterface::FIELD_CLASS => apply_filters('swedbank_pay_product_class_discount', 'ProductGroup1', $order),
+                OrderItemInterface::FIELD_CLASS => apply_filters(
+                    'swedbank_pay_product_class_discount',
+                    'ProductGroup1',
+                    $order
+                ),
                 OrderItemInterface::FIELD_QTY => 1,
                 OrderItemInterface::FIELD_QTY_UNIT => 'pcs',
                 OrderItemInterface::FIELD_UNITPRICE => round(-100 * $discountWithTax),
@@ -590,7 +602,8 @@ class WC_Adapter implements PaymentAdapterInterface
         }
 
         $this->log(
-            'info', sprintf(
+            'info',
+            sprintf(
                 'Update order status #%s to %s. Transaction ID: %s',
                 $orderId,
                 $status,
