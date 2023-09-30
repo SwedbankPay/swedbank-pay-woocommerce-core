@@ -2,7 +2,9 @@
 
 namespace SwedbankPay\Core\Adapter;
 
+use SwedbankPay\Checkout\WooCommerce\Swedbank_Pay_Admin;
 use Automattic\WooCommerce\Utilities\OrderUtil;
+use Automattic\WooCommerce\Admin\Overrides\OrderRefund;
 use SwedbankPay\Core\Exception;
 use SwedbankPay\Core\Log\LogLevel;
 use SwedbankPay\Core\ConfigurationInterface;
@@ -189,8 +191,8 @@ class WC_Adapter implements PaymentAdapterInterface
         $order = wc_get_order($orderId);
 
         // Load parent order if have `OrderRefund`
-        if ('order_refund' === $order->get_type()) {
-            $order = wc_get_order($order->get_parent_id());
+        if ('order_refund' === $order->get_type() || $order instanceof OrderRefund) {
+            throw new \LogicException('Unable to use OrderRefund objects.');
         }
 
         // Force a new DB read (and update cache) for meta data.
@@ -565,6 +567,12 @@ class WC_Adapter implements PaymentAdapterInterface
      */
     public function updateOrderStatus($orderId, $status, $message = null, $transactionNumber = null)
     {
+        remove_action(
+            'woocommerce_order_status_changed',
+            [Swedbank_Pay_Admin::class, 'order_status_changed_transaction'],
+            0
+        );
+
         $order = wc_get_order($orderId);
 
         if ($transactionNumber) {
@@ -581,7 +589,14 @@ class WC_Adapter implements PaymentAdapterInterface
             $order->save();
         }
 
-        $this->log('info', sprintf('Update order status #%s to %s', $orderId, $status));
+        $this->log(
+            'info', sprintf(
+                'Update order status #%s to %s. Transaction ID: %s',
+                $orderId,
+                $status,
+                $transactionNumber
+            )
+        );
 
         switch ($status) {
             case OrderInterface::STATUS_PENDING:
@@ -603,10 +618,7 @@ class WC_Adapter implements PaymentAdapterInterface
                 // Set on-hold
                 if (!$order->has_status('on-hold')) {
                     // Reduce stock
-                    $orderStockReduced = $order->get_meta('_order_stock_reduced');
-                    if (!$orderStockReduced) {
-                        wc_reduce_stock_levels($order->get_id());
-                    }
+                    wc_maybe_reduce_stock_levels($order->get_id());
 
                     $order->update_status('on-hold', $message);
                 } elseif ($message) {

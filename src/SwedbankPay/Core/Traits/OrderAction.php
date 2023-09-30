@@ -169,7 +169,7 @@ trait OrderAction
     {
         $this->log(
             LogLevel::DEBUG,
-            sprintf('Process transaction: %s', json_encode($transaction, JSON_PRETTY_PRINT))
+            sprintf('Process transaction: %s', var_export($transaction, true))
         );
 
         /** @var Order $order */
@@ -210,6 +210,21 @@ trait OrderAction
             case FinancialTransactionInterface::TYPE_SALE:
                 // Check if the payment was captured fully
                 // `remainingCaptureAmount` is missing if the payment was captured fully
+                if (!isset($paymentBody['remainingCaptureAmount'])) {
+                    $this->log(
+                        LogLevel::DEBUG,
+                        sprintf(
+                            'Warning: Payment Order ID: %s. Transaction %s. Transaction amount: %s. Order amount: %s. Field remainingCaptureAmount is missing. Full action?', //phpcs:ignore
+                            $order->getPaymentOrderId(),
+                            $transaction->getNumber(),
+                            $transaction->getAmount() / 100,
+                            $order->getAmount()
+                        )
+                    );
+                }
+
+                $remainingAmount = isset($paymentBody['remainingCaptureAmount'])
+                    ? $paymentBody['remainingCaptureAmount'] / 100 : 0;
                 $isFullCapture = false;
                 if (!isset($paymentBody['remainingCaptureAmount'])) {
                     $isFullCapture = true;
@@ -231,9 +246,10 @@ trait OrderAction
                     $this->addOrderNote(
                         $orderId,
                         sprintf(
-                            'Payment has been partially captured: Transaction: %s. Amount: %s',
+                            'Payment has been partially captured: Transaction: %s. Amount: %s. Remaining amount: %s', //phpcs:ignore
                             $transaction->getNumber(),
-                            $transaction->getAmount() / 100
+                            $transaction->getAmount() / 100,
+                            $remainingAmount
                         )
                     );
                 }
@@ -249,16 +265,33 @@ trait OrderAction
 
                 break;
             case FinancialTransactionInterface::TYPE_REVERSAL:
-                // Create Credit Memo
-                $this->createCreditMemo(
-                    $orderId,
-                    $transaction->getAmount() / 100,
-                    $transaction->getNumber(),
-                    $transaction->getDescription()
-                );
+                // Create Credit Memo if not exists
+                if (!$this->isCreditMemoExist($transaction->getNumber())) {
+                    $this->createCreditMemo(
+                        $orderId,
+                        $transaction->getAmount() / 100,
+                        $transaction->getNumber(),
+                        $transaction->getDescription()
+                    );
+                }
 
                 // Check if the payment was refunded fully
                 // `remainingReversalAmount` is missing if the payment was refunded fully
+                if (!isset($paymentBody['remainingReversalAmount'])) {
+                    $this->log(
+                        LogLevel::DEBUG,
+                        sprintf(
+                            'Warning: Payment Order ID: %s. Transaction %s. Transaction amount: %s. Order amount: %s. Field remainingReversalAmount is missing. Full action?', //phpcs:ignore
+                            $order->getPaymentOrderId(),
+                            $transaction->getNumber(),
+                            $transaction->getAmount() / 100,
+                            $order->getAmount()
+                        )
+                    );
+                }
+
+                $remainingAmount = isset($paymentBody['remainingReversalAmount'])
+                    ? $paymentBody['remainingReversalAmount'] / 100 : 0;
                 $isFullRefund = false;
                 if (!isset($paymentBody['remainingReversalAmount'])) {
                     $isFullRefund = true;
@@ -280,9 +313,10 @@ trait OrderAction
                     $this->addOrderNote(
                         $orderId,
                         sprintf(
-                            'Payment has been partially refunded: Transaction: %s. Amount: %s',
+                            'Payment has been partially refunded: Transaction: %s. Amount: %s. Remaining amount: %s', //phpcs:ignore
                             $transaction->getNumber(),
-                            $transaction->getAmount() / 100
+                            $transaction->getAmount() / 100,
+                            $remainingAmount
                         )
                     );
                 }

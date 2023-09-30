@@ -105,6 +105,22 @@ class FinancialTransaction extends Data implements FinancialTransactionInterface
     /**
      * @return bool
      */
+    public function isAuthorization()
+    {
+        return self::TYPE_AUTHORIZATION === $this->getType();
+    }
+
+    /**
+     * @return bool
+     */
+    public function isVerification()
+    {
+        return self::TYPE_VERIFICATION === $this->getType();
+    }
+
+    /**
+     * @return bool
+     */
     public function isCapture()
     {
         return in_array($this->getType(), [self::TYPE_CAPTURE, self::TYPE_SALE]);
