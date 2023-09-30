@@ -1,8 +1,8 @@
 <?php
 
-namespace SwedbankPay\Core\Library;
+namespace SwedbankPay\Core\Traits;
 
-use SwedbankPay\Core\Api\Transaction;
+use SwedbankPay\Core\Api\FinancialTransaction;
 
 trait TransactionAction
 {
@@ -12,13 +12,13 @@ trait TransactionAction
      * @param mixed $orderId
      * @param array $transactionData
      */
-    public function saveTransaction($orderId, $transactionData = [])
+    public function saveFinancialTransaction($orderId, $transactionData = [])
     {
         if (is_object($transactionData) && method_exists($transactionData, 'toArray')) {
             $transactionData = $transactionData->toArray();
         }
 
-        $this->adapter->saveTransaction($orderId, $transactionData);
+        $this->adapter->saveFinancialTransaction($orderId, $transactionData);
     }
 
     /**
@@ -27,14 +27,14 @@ trait TransactionAction
      * @param mixed $orderId
      * @param array $transactions
      */
-    public function saveTransactions($orderId, array $transactions)
+    public function saveFinancialTransactions($orderId, array $transactions)
     {
         foreach ($transactions as $transactionData) {
             if (is_object($transactionData) && method_exists($transactionData, 'toArray')) {
                 $transactionData = $transactionData->toArray();
             }
 
-            $this->adapter->saveTransaction($orderId, $transactionData);
+            $this->adapter->saveFinancialTransaction($orderId, $transactionData);
         }
     }
 
@@ -44,16 +44,16 @@ trait TransactionAction
      * @param string $field
      * @param mixed $value
      *
-     * @return bool|Transaction
+     * @return bool|FinancialTransaction
      */
-    public function findTransaction($field, $value)
+    public function findFinancialTransaction($field, $value)
     {
-        $transaction = $this->adapter->findTransaction($field, $value);
+        $transaction = $this->adapter->findFinancialTransaction($field, $value);
 
         if (!$transaction) {
             return false;
         }
 
-        return new Transaction($transaction);
+        return new FinancialTransaction($transaction);
     }
 }

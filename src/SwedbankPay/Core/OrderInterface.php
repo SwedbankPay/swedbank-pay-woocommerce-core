@@ -5,7 +5,6 @@ namespace SwedbankPay\Core;
 /**
  * Interface OrderInterface
  * @package SwedbankPay\Core
- * @method string|null getPaymentMethod()
  * @method mixed getOrderId()
  * @method float getAmount()
  * @method float getVatAmount()
@@ -28,8 +27,6 @@ namespace SwedbankPay\Core;
  * @method mixed getCreatedAt()
  * @method $this setLanguage($value)
  * @method mixed getLanguage()
- * @method $this setPaymentId($value)
- * @method mixed getPaymentId()
  * @method $this setPaymentOrderId($value)
  * @method mixed getPaymentOrderId()
  * @method $this setNeedsSaveTokenFlag($value)

@@ -1,3 +1,29 @@
+Version 8.0.0
+Added
+- `finalizePaymentOrder` method
+- `processFinancialTransaction` method
+- `FinancialTransaction` class
+
+Removed
+- Methods for `Card`, `Invoice`, `Mobilepay`, `Swish`, `Trustly`, `Vipps`, `Consumer`
+- `abort`, `refund`, `cancel`, `capture` methods
+- `getPaymentIdByPaymentOrder`
+- `getCheckoutCurrentPayment`
+- `fetchTransactionsAndUpdateOrder`
+- `updateTransactionsOnFailure`
+- `savePaymentOrderTokens`
+- `Adapter::savePaymentToken`
+- `Adapter::getRiskIndicator`
+- `savePaymentOrderTokens`
+- `Transaction` class
+- `PaymentorderRiskIndicator` class
+- `get_product_name`, `getProductName()`
+- `processTransaction`
+- `deletePaymentToken`
+- `fetchTransactionsList`
+- `setPaymentId`
+- `getPaymentMethod`
+
 Version 7.0.0
 Added
 - Checkout V3

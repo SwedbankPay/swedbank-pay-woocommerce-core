@@ -1,10 +1,10 @@
 <?php
 
-namespace SwedbankPay\Core\Library;
+namespace SwedbankPay\Core\Traits;
 
 use SwedbankPay\Core\Api\Authorization;
 use SwedbankPay\Core\Api\Response;
-use SwedbankPay\Core\Api\Transaction;
+use SwedbankPay\Core\Api\FinancialTransaction;
 use SwedbankPay\Core\Api\Verification;
 use SwedbankPay\Core\Exception;
 use SwedbankPay\Core\Log\LogLevel;
@@ -52,7 +52,7 @@ trait PaymentInfo
 
         try {
             /** @var \SwedbankPay\Api\Response $response */
-            $client = $this->client->request($method, $url, $params);
+            $client = $this->getClient()->request($method, $url, $params);
 
             //$codeClass = (int)($this->client->getResponseCode() / 100);
             $responseBody = $client->getResponseBody();
@@ -132,34 +132,33 @@ trait PaymentInfo
     }
 
     /**
-     * Fetch Transaction List.
+     * Fetch Financial Transaction List.
      *
-     * @param string $paymentIdUrl
-     * @param string|null $expand
+     * @param $paymentOrderIdUrl
+     * @param $expand
      *
-     * @return Transaction[]
-     * @throws Exception
+     * @return FinancialTransaction[]
      */
-    public function fetchTransactionsList($paymentIdUrl, $expand = null)
+    public function fetchFinancialTransactionsList($paymentOrderIdUrl, $expand = null)
     {
-        $paymentIdUrl .= '/transactions';
+        $paymentOrderIdUrl .= '/financialtransactions';
 
         if ($expand) {
-            $paymentIdUrl .= '?$expand=' . $expand;
+            $paymentOrderIdUrl .= '?$expand=' . $expand;
         }
 
         try {
-            $result = $this->request('GET', $paymentIdUrl);
+            $result = $this->request('GET', $paymentOrderIdUrl);
         } catch (\Exception $e) {
             $this->log(
                 LogLevel::DEBUG,
                 sprintf('%s: API Exception: %s', __METHOD__, $e->getMessage())
             );
 
-            throw new Exception($e->getMessage());
+            return [];
         }
 
-        $transactionList = $result['transactions']['transactionList'];
+        $transactionList = $result['financialTransactions']['financialTransactionsList'];
 
         // Sort by "created" field using array_multisort
         $sortingFlow = array();
@@ -173,7 +172,7 @@ trait PaymentInfo
 
         $transactions = [];
         foreach ($transactionList as $transaction) {
-            $transactions[] = new Transaction($transaction);
+            $transactions[] = new FinancialTransaction($transaction);
         }
 
         return $transactions;

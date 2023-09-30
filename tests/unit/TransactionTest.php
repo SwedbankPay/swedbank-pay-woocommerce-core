@@ -1,7 +1,7 @@
 <?php
 
-use SwedbankPay\Core\Api\Transaction;
-use SwedbankPay\Core\Api\TransactionInterface;
+use SwedbankPay\Core\Api\FinancialTransaction;
+use SwedbankPay\Core\Api\FinancialTransactionInterface;
 use SwedbankPay\Core\Api\Problem;
 use SwedbankPay\Core\Api\ProblemInterface;
 
@@ -25,15 +25,15 @@ class TransactionTest extends TestCase
 }';
         $data = json_decode($data, true);
 
-        $transaction = new Transaction($data);
-        $this->assertInstanceOf(TransactionInterface::class, $transaction);
+        $transaction = new FinancialTransaction($data);
+        $this->assertInstanceOf(FinancialTransactionInterface::class, $transaction);
         $this->assertEquals(
             '/psp/creditcard/payments/d0b69e11-a6b5-4ef7-8b95-08d94fff2cbf/transactions/dd08a774-34a0-40ee-bb7b-08d94fcc1da0',
             $transaction->getId()
         );
         $this->assertEquals('2021-08-02T05:55:05.4437298Z', $transaction->getCreated());
         $this->assertEquals('2021-08-02T05:55:11.9725364Z', $transaction->getUpdated());
-        $this->assertEquals(TransactionInterface::TYPE_AUTHORIZATION, $transaction->getType());
+        $this->assertEquals(FinancialTransactionInterface::TYPE_AUTHORIZATION, $transaction->getType());
         $this->assertEquals(40108027689, $transaction->getNumber());
         $this->assertEquals(28125, $transaction->getAmount());
         $this->assertEquals(5625, $transaction->getVatAmount());
@@ -48,28 +48,27 @@ class TransactionTest extends TestCase
 
     public function testSetters()
     {
-        $transaction = new Transaction([]);
+        $transaction = new FinancialTransaction([]);
         $transaction->setId(
             '/psp/creditcard/payments/d0b69e11-a6b5-4ef7-8b95-08d94fff2cbf/transactions/dd08a774-34a0-40ee-bb7b-08d94fcc1da0'
         )
             ->setCreated('2021-08-02T05:55:05.4437298Z')
             ->setUpdated('2021-08-02T05:55:11.9725364Z')
-            ->setType(TransactionInterface::TYPE_AUTHORIZATION)
-            ->setState(TransactionInterface::STATE_COMPLETED)
+            ->setType(FinancialTransactionInterface::TYPE_AUTHORIZATION)
             ->setNumber(40108027689)
             ->setAmount(28125)
             ->setVatAmount(5625)
             ->setDescription('Order #33787')
             ->setPayeeReference('33787xljqrs');
 
-        $this->assertInstanceOf(TransactionInterface::class, $transaction);
+        $this->assertInstanceOf(FinancialTransactionInterface::class, $transaction);
         $this->assertEquals(
             '/psp/creditcard/payments/d0b69e11-a6b5-4ef7-8b95-08d94fff2cbf/transactions/dd08a774-34a0-40ee-bb7b-08d94fcc1da0',
             $transaction->getId()
         );
         $this->assertEquals('2021-08-02T05:55:05.4437298Z', $transaction->getCreated());
         $this->assertEquals('2021-08-02T05:55:11.9725364Z', $transaction->getUpdated());
-        $this->assertEquals(TransactionInterface::TYPE_AUTHORIZATION, $transaction->getType());
+        $this->assertEquals(FinancialTransactionInterface::TYPE_AUTHORIZATION, $transaction->getType());
         $this->assertEquals(40108027689, $transaction->getNumber());
         $this->assertEquals(28125, $transaction->getAmount());
         $this->assertEquals(5625, $transaction->getVatAmount());
@@ -111,8 +110,8 @@ class TransactionTest extends TestCase
 }';
         $data = json_decode($data, true);
 
-        $transaction = new Transaction($data);
-        $this->assertInstanceOf(TransactionInterface::class, $transaction);
+        $transaction = new FinancialTransaction($data);
+        $this->assertInstanceOf(FinancialTransactionInterface::class, $transaction);
         $this->assertEquals(true, $transaction->isFailed());
         $this->assertInstanceOf(Problem::class, $transaction->getProblem());
         $this->assertInstanceOf(ProblemInterface::class, $transaction->getProblem());

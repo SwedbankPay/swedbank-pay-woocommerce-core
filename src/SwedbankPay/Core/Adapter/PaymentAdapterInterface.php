@@ -1,6 +1,6 @@
 <?php
 
-namespace SwedbankPay\Core;
+namespace SwedbankPay\Core\Adapter;
 
 /**
  * Interface PaymentAdapterInterface
@@ -14,17 +14,6 @@ interface PaymentAdapterInterface
     const IMPLEMENTATION_STARTER = 'Starter';
     const IMPLEMENTATION_ENTERPRISE = 'Enterprise';
     const IMPLEMENTATION_PAYMENTS_ONLY = 'PaymentsOnly';
-
-    /**
-     * Payment Methods
-     */
-    const METHOD_CHECKOUT = 'checkout';
-    const METHOD_CC = 'cc';
-    const METHOD_INVOICE = 'invoice';
-    const METHOD_MOBILEPAY = 'mobilepay';
-    const METHOD_SWISH = 'swish';
-    const METHOD_TRUSTLY = 'trustly';
-    const METHOD_VIPPS = 'vipps';
 
     /**
      * Log a message.
@@ -70,15 +59,6 @@ interface PaymentAdapterInterface
     public function getOrderData($orderId);
 
     /**
-     * Get Risk Indicator of Order.
-     *
-     * @param mixed $orderId
-     *
-     * @return array
-     */
-    public function getRiskIndicator($orderId);
-
-    /**
      * Get Payee Info of Order.
      *
      * @param mixed $orderId
@@ -119,16 +99,6 @@ interface PaymentAdapterInterface
     public function updateOrderStatus($orderId, $status, $message = null, $transactionNumber = null);
 
     /**
-     * Set Payment Id to Order.
-     *
-     * @param mixed $orderId
-     * @param string $paymentId
-     *
-     * @return void
-     */
-    public function setPaymentId($orderId, $paymentId);
-
-    /**
      * Set Payment Order Id to Order.
      *
      * @param mixed $orderId
@@ -147,21 +117,12 @@ interface PaymentAdapterInterface
     public function addOrderNote($orderId, $message);
 
     /**
-     * Get Payment Method.
-     *
-     * @param mixed $orderId
-     *
-     * @return string|null Returns method or null if not exists
-     */
-    public function getPaymentMethod($orderId);
-
-    /**
      * Save Transaction data.
      *
      * @param mixed $orderId
      * @param array $transactionData
      */
-    public function saveTransaction($orderId, array $transactionData = []);
+    public function saveFinancialTransaction($orderId, array $transactionData = []);
 
     /**
      * Find for Transaction.
@@ -171,34 +132,7 @@ interface PaymentAdapterInterface
      *
      * @return array
      */
-    public function findTransaction($field, $value);
-
-    /**
-     * Save Payment Token.
-     *
-     * @param mixed $customerId
-     * @param string|null $paymentToken
-     * @param string|null $recurrenceToken
-     * @param string|null $unscheduledToken
-     * @param string $cardBrand
-     * @param string $maskedPan
-     * @param string $expiryDate
-     * @param mixed|null $orderId
-     *
-     * @return void
-     *
-     * @throws Exception
-     */
-    public function savePaymentToken(
-        $customerId,
-        $paymentToken,
-        $recurrenceToken,
-        $unscheduledToken,
-        $cardBrand,
-        $maskedPan,
-        $expiryDate,
-        $orderId = null
-    );
+    public function findFinancialTransaction($field, $value);
 
     /**
      * Process payment object.
@@ -236,8 +170,6 @@ interface PaymentAdapterInterface
      * @param float $amount
      * @param mixed $transactionId
      * @param string $description
-     *
-     * @throws Exception
      */
     public function createCreditMemo($orderId, $amount, $transactionId, $description);
 
@@ -249,13 +181,6 @@ interface PaymentAdapterInterface
      * @return bool
      */
     public function isCreditMemoExist($transactionId);
-
-    /**
-     * Get Product Name.
-     *
-     * @return string|null
-     */
-    public function getProductName();
 
     /**
      * Get Implementation.

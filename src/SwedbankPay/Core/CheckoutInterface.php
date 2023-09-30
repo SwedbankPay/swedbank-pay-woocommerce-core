@@ -1,6 +1,6 @@
 <?php
 
-namespace SwedbankPay\Core\Library\Methods;
+namespace SwedbankPay\Core;
 
 use SwedbankPay\Core\Api\Response;
 use SwedbankPay\Core\Exception;
@@ -18,9 +18,6 @@ interface CheckoutInterface
      *
      * @param mixed $orderId
      * @param string|null $consumerProfileRef
-     * @param bool $genPaymentToken
-     * @param bool $genRecurrenceToken
-     * @param bool $genUnscheduledToken
      *
      * @return Response
      * @throws Exception
@@ -28,10 +25,7 @@ interface CheckoutInterface
      */
     public function initiatePaymentOrderPurchase(
         $orderId,
-        $consumerProfileRef = null,
-        $genPaymentToken = false,
-        $genRecurrenceToken = false,
-        $genUnscheduledToken = false
+        $consumerProfileRef = null
     );
 
     /**
@@ -44,10 +38,7 @@ interface CheckoutInterface
      * @SuppressWarnings(PHPMD.BooleanArgumentFlag)
      */
     public function initiatePaymentOrderVerify(
-        $orderId,
-        $genPaymentToken = false,
-        $genRecurrenceToken = false,
-        $genUnscheduledToken = false
+        $orderId
     );
 
     /**
@@ -83,34 +74,6 @@ interface CheckoutInterface
     public function updatePaymentOrder($updateUrl, $orderId);
 
     /**
-     * Get Payment ID url by Payment Order.
-     *
-     * @param string $paymentOrderId
-     *
-     * @return string|false
-     */
-    public function getPaymentIdByPaymentOrder($paymentOrderId);
-
-    /**
-     * Get Current Payment Resource.
-     * The currentpayment resource displays the payment that are active within the payment order container.
-     *
-     * @param string $paymentOrderId
-     * @return array|false
-     */
-    public function getCheckoutCurrentPayment($paymentOrderId);
-
-    /**
-     * Extract and save tokens.
-     *
-     * @param mixed $orderId
-     *
-     * @return void
-     * @throws Exception
-     */
-    public function savePaymentOrderTokens($orderId);
-
-    /**
      * Capture Checkout.
      *
      * @param mixed $orderId
@@ -143,14 +106,4 @@ interface CheckoutInterface
      * @throws Exception
      */
     public function refundCheckout($orderId, array $items = []);
-
-    /**
-     * Delete Token.
-     *
-     * @param string $paymentToken
-     *
-     * @return void
-     * @throws Exception
-     */
-    public function deletePaymentToken($paymentToken);
 }

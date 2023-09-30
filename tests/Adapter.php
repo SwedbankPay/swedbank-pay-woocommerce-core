@@ -1,16 +1,14 @@
 <?php
 
-use SwedbankPay\Core\PaymentAdapter;
-use SwedbankPay\Core\PaymentAdapterInterface;
+use SwedbankPay\Core\Adapter\PaymentAdapterInterface;
 use SwedbankPay\Core\ConfigurationInterface;
 use SwedbankPay\Core\Order\PlatformUrlsInterface;
 use SwedbankPay\Core\OrderInterface;
 use SwedbankPay\Core\OrderItemInterface;
-use SwedbankPay\Core\Order\RiskIndicatorInterface;
 use SwedbankPay\Core\Order\PayeeInfoInterface;
 use SwedbankPay\Core\Exception;
 
-class Adapter extends PaymentAdapter implements PaymentAdapterInterface
+class Adapter implements PaymentAdapterInterface
 {
     /**
      * @var Gateway
@@ -65,27 +63,14 @@ class Adapter extends PaymentAdapter implements PaymentAdapterInterface
             ConfigurationInterface::PAYEE_ID => $this->gateway->payee_id,
             ConfigurationInterface::PAYEE_NAME => $this->gateway->payee_name,
             ConfigurationInterface::MODE => $this->gateway->testmode,
-            ConfigurationInterface::AUTO_CAPTURE => $this->gateway->auto_capture,
             ConfigurationInterface::SUBSITE => $this->gateway->subsite,
             ConfigurationInterface::LANGUAGE => $this->gateway->language,
-            ConfigurationInterface::SAVE_CC => property_exists($this->gateway, 'save_cc') ?
-                'yes' === $this->gateway->save_cc : false,
             ConfigurationInterface::TERMS_URL => property_exists($this->gateway, 'terms_url') ?
                 $this->gateway->terms_url : '',
             ConfigurationInterface::LOGO_URL => property_exists($this->gateway, 'logo_url') ?
                 $this->gateway->logo_url : '',
             ConfigurationInterface::USE_PAYER_INFO => property_exists($this->gateway, 'use_payer_info') ?
                 'yes' === $this->gateway->use_payer_info : true,
-            ConfigurationInterface::USE_CARDHOLDER_INFO => property_exists($this->gateway, 'use_cardholder_info') ?
-                'yes' === $this->gateway->use_cardholder_info : true,
-            ConfigurationInterface::REJECT_CREDIT_CARDS => property_exists($this->gateway, 'reject_credit_cards') ?
-                'yes' === $this->gateway->reject_credit_cards : true,
-            ConfigurationInterface::REJECT_DEBIT_CARDS => property_exists($this->gateway, 'reject_debit_cards') ?
-                'yes' === $this->gateway->reject_debit_cards : true,
-            ConfigurationInterface::REJECT_CONSUMER_CARDS => property_exists($this->gateway, 'reject_consumer_cards') ?
-                'yes' === $this->gateway->reject_consumer_cards : true,
-            ConfigurationInterface::REJECT_CORPORATE_CARDS => property_exists($this->gateway, 'reject_corporate_cards') ?
-                'yes' === $this->gateway->reject_corporate_cards : true,
         ];
     }
 
@@ -183,21 +168,6 @@ class Adapter extends PaymentAdapter implements PaymentAdapterInterface
     }
 
     /**
-     * Get Risk Indicator of Order.
-     *
-     * @param mixed $orderId
-     *
-     * @return array
-     */
-    public function getRiskIndicator($orderId)
-    {
-        return [
-            // Two-day or more shipping
-            'deliveryTimeFrameIndicator' => '04'
-        ];
-    }
-
-    /**
      * Get Payee Info of Order.
      *
      * @param mixed $orderId
@@ -254,7 +224,7 @@ class Adapter extends PaymentAdapter implements PaymentAdapterInterface
      * @param mixed $orderId
      * @param array $transactionData
      */
-    public function saveTransaction($orderId, array $transactionData = [])
+    public function saveFinancialTransaction($orderId, array $transactionData = [])
     {
         // @todo
     }
@@ -267,37 +237,8 @@ class Adapter extends PaymentAdapter implements PaymentAdapterInterface
      *
      * @return array
      */
-    public function findTransaction($field, $value)
+    public function findFinancialTransaction($field, $value)
     {
-        // @todo
-    }
-
-    /**
-     * Save Payment Token.
-     *
-     * @param mixed $customerId
-     * @param string|null $paymentToken
-     * @param string|null $recurrenceToken
-     * @param string|null $unscheduledToken
-     * @param string $cardBrand
-     * @param string $maskedPan
-     * @param string $expiryDate
-     * @param mixed|null $orderId
-     *
-     * @return void
-     *
-     * @throws Exception
-     */
-    public function savePaymentToken(
-        $customerId,
-        $paymentToken,
-        $recurrenceToken,
-        $unscheduledToken,
-        $cardBrand,
-        $maskedPan,
-        $expiryDate,
-        $orderId = null
-    ) {
         // @todo
     }
 
@@ -316,19 +257,6 @@ class Adapter extends PaymentAdapter implements PaymentAdapterInterface
     }
 
     /**
-     * Set Payment Id to Order.
-     *
-     * @param mixed $orderId
-     * @param string $paymentId
-     *
-     * @return void
-     */
-    public function setPaymentId($orderId, $paymentId)
-    {
-        // @todo
-    }
-
-    /**
      * Set Payment Order Id to Order.
      *
      * @param mixed $orderId
@@ -339,18 +267,6 @@ class Adapter extends PaymentAdapter implements PaymentAdapterInterface
     public function setPaymentOrderId($orderId, $paymentOrderId)
     {
         // @todo
-    }
-
-    /**
-     * Get Payment Method.
-     *
-     * @param mixed $orderId
-     *
-     * @return string|null Returns method or null if not exists
-     */
-    public function getPaymentMethod($orderId)
-    {
-        return PaymentAdapterInterface::METHOD_CC;
     }
 
     /**
@@ -420,16 +336,6 @@ class Adapter extends PaymentAdapter implements PaymentAdapterInterface
     public function isCreditMemoExist($transactionId)
     {
         return false;
-    }
-
-    /**
-     * Get Product Name.
-     *
-     * @return string
-     */
-    public function getProductName()
-    {
-        return null;
     }
 
     /**
